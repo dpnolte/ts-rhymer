@@ -1,4 +1,4 @@
-## TypeScript Annotator - from kotlin to typescript 
+## TypeScript Rhymer - kotlin rhymes with typescript (pun intended)
 This is a kotlin annotation processor to generate TypeScript definitions. This is useful for javascript based apps to bridge  data structures from kotlin to JS. Heavily inspired by (standing on the shoulders of giants ;-): 
 - [moshi-code-gen](https://medium.com/@sweers/exploring-moshis-kotlin-code-gen-dec09d72de5e)
 - [tsGenerator](https://github.com/ntrrgc/ts-generator/tree/master/src/main/kotlin/me/ntrrgc/tsGenerator)
