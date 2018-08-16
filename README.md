@@ -15,8 +15,8 @@ repositories {
 3. Add dependencies:
 ```
 dependencies {
-    compileOnly 'com.github.dpnolte.ts-annotater:annotation:0.1'
-    kapt 'com.github.dpnolte.ts-annotater:codegen:0.1'
+    compileOnly 'com.github.dpnolte.ts-rhymer:annotation:0.1'
+    kapt 'com.github.dpnolte.ts-rhymer:codegen:0.1'
 }
 ```
 4. Provide kapt arguments (optional):
