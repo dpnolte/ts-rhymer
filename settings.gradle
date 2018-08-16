@@ -1,2 +1,2 @@
-include ':annotation'
-include ':codegen'
+include 'annotation'
+include 'codegen'
