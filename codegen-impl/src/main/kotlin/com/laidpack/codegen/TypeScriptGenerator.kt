@@ -97,23 +97,29 @@ internal class TypeScriptGenerator private constructor (
                 moduleName: String,
                 targetTypes: HashMap<String, TargetType>,
                 indent: String,
-                customTypeScriptValueTransformers: List<ValueTypeTransformer> = listOf()
+                customTypeScriptValueTransformers: List<ValueTypeTransformer> = listOf(),
+                generateOnlyWithinModule: Boolean = false,
+                rootPackageNames: Set<String> = setOf()
         ): String {
             this.indent = indent
             val targetTypeNames = targetTypes.keys
             val sortedTypeNames = targetTypeNames.sorted()
+            val definitions = mutableListOf<String>()
+            sortedTypeNames.forEach { key ->
+                val targetType = targetTypes[key] as TargetType
+                if (!generateOnlyWithinModule || rootPackageNames.contains(targetType.name.packageName)) {
+                    val generatedTypeScript = TypeScriptGenerator(
+                            targetType,
+                            targetTypeNames,
+                            customTypeScriptValueTransformers
+                    )
+                    definitions.add(generatedTypeScript.output)
+                }
+            }
 
             val timestamp = "/* generated @ ${LocalDateTime.now()} */\n"
             val moduleStart = "declare module \"$moduleName\" {\n"
-            val moduleContent = sortedTypeNames.joinToString("\n") { key ->
-                val targetType = targetTypes[key] as TargetType
-                val generatedTypeScript = TypeScriptGenerator(
-                        targetType,
-                        targetTypeNames,
-                        customTypeScriptValueTransformers
-                )
-                generatedTypeScript.output
-            }
+            val moduleContent = definitions.joinToString("\n")
             val moduleEnd = "}\n"
 
             return "$timestamp$moduleStart$moduleContent$moduleEnd"

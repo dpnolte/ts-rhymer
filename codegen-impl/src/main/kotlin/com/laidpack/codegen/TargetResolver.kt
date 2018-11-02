@@ -15,11 +15,11 @@ internal object TargetResolver {
             targetTypes.add(rootType)
 
         /**
-         * extra type can derive from 3 sources:
+         * extra type can stem from 3 sources:
          // 1. declared types in properties - e.g., type Y in class X { val test = List<Y>() } -> see WrappedType.resolvePropertyType
          // 2. super classes --> see TargetType.resolveSuperTypes
          // 3. bounds in type variables - e.g., type Y in class X <T : Y> { val test = T } --> see WrappedType.resolveGenericClassDeclaration
-         // TODO: refactor state flow for better structure
+         // TODO: don't capture target types in the context instance (see typesToBeAddedToScope)
         **/
         context.targetingTypscriptAnnotatedType = false
         context.abortOnError = false
