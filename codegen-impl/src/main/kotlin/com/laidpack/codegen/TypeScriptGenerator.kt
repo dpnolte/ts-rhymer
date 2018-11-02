@@ -103,11 +103,13 @@ internal class TypeScriptGenerator private constructor (
         ): String {
             this.indent = indent
             val targetTypeNames = targetTypes.keys
-            val sortedTypeNames = targetTypeNames.sorted()
             val definitions = mutableListOf<String>()
-            sortedTypeNames.forEach { key ->
+            targetTypeNames.sorted().forEach { key ->
                 val targetType = targetTypes[key] as TargetType
-                if (!generateOnlyWithinModule || rootPackageNames.contains(targetType.name.packageName)) {
+                if (!generateOnlyWithinModule
+                        || rootPackageNames.contains(targetType.name.packageName)
+                        || rootPackageNames.any { targetType.name.packageName.startsWith(it) }
+                ) {
                     val generatedTypeScript = TypeScriptGenerator(
                             targetType,
                             targetTypeNames,
@@ -116,7 +118,6 @@ internal class TypeScriptGenerator private constructor (
                     definitions.add(generatedTypeScript.output)
                 }
             }
-
             val timestamp = "/* generated @ ${LocalDateTime.now()} */\n"
             val moduleStart = "declare module \"$moduleName\" {\n"
             val moduleContent = definitions.joinToString("\n")
