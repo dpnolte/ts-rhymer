@@ -34,14 +34,11 @@ import me.eugeniomarletti.kotlin.metadata.shadow.metadata.ProtoBuf.Visibility.LO
 import me.eugeniomarletti.kotlin.metadata.shadow.metadata.deserialization.NameResolver
 import me.eugeniomarletti.kotlin.metadata.shadow.util.capitalizeDecapitalize.decapitalizeAsciiOnly
 import me.eugeniomarletti.kotlin.metadata.visibility
-import javax.annotation.processing.Messager
 import javax.lang.model.element.Element
 import javax.lang.model.element.ElementKind
 import javax.lang.model.element.ExecutableElement
 import javax.lang.model.element.TypeElement
 import javax.lang.model.element.VariableElement
-import javax.lang.model.util.Elements
-import javax.lang.model.util.Types
 import javax.tools.Diagnostic.Kind.ERROR
 import javax.tools.Diagnostic.Kind.WARNING
 
@@ -64,7 +61,7 @@ internal data class TargetType(
     fun get(element: Element, context: TargetContext): TargetType? {
       val typeMetadata: KotlinMetadata? = element.kotlinMetadata
       if (element !is TypeElement || typeMetadata !is KotlinClassMetadata) {
-        if (context.failOnError)
+        if (context.abortOnError)
           context.messager.printMessage(ERROR, "@TypeScript can't be applied to $element: must be a Kotlin class", element)
         return null
       }
@@ -94,15 +91,15 @@ internal data class TargetType(
     private fun getDeclaredTargetType(element: TypeElement, proto: Class, typeMetadata: KotlinClassMetadata, context: TargetContext): TargetType? {
       when {
         proto.classKind != Class.Kind.CLASS -> {
-          context.messager.printMessage( if (context.failOnError) ERROR else WARNING, "@TypeScript can't be applied to $element: must be a Kotlin class", element)
+          context.messager.printMessage( if (context.abortOnError) ERROR else WARNING, "@TypeScript can't be applied to $element: must be a Kotlin class", element)
           return null
         }
         proto.isInnerClass -> {
-          context.messager.printMessage( if (context.failOnError) ERROR else WARNING, "@TypeScript can't be applied to $element: must not be an inner class", element)
+          context.messager.printMessage( if (context.abortOnError) ERROR else WARNING, "@TypeScript can't be applied to $element: must not be an inner class", element)
           return null
         }
         proto.visibility == LOCAL -> {
-          context.messager.printMessage( if (context.failOnError) ERROR else WARNING, "@TypeScript can't be applied to $element: must not be local", element)
+          context.messager.printMessage( if (context.abortOnError) ERROR else WARNING, "@TypeScript can't be applied to $element: must not be local", element)
           return null
         }
       }

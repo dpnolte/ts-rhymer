@@ -20,11 +20,12 @@ internal class TypeScriptTypeTransformerTest {
         val mockedStringType = Mockito.mock(WrappedType::class.java)
         Mockito.`when`(mockedType.isIterable).`it returns`(true)
         Mockito.`when`(mockedType.hasParameters).`it returns`(true)
-        Mockito.`when`(mockedType.parameters).`it returns`(hashMapOf("String" to mockedStringType))
+        Mockito.`when`(mockedType.parameters).`it returns`(mapOf("String" to mockedStringType))
         Mockito.`when`(mockedStringType.hasParameters).`it returns`(false)
         Mockito.`when`(mockedStringType.canonicalName).`it returns`(String::class.java.canonicalName)
 
-        val result = TypeScriptTypeTransformer.transformType(mockedType, setOf(), mapOf())
+        val transformer = TypeScriptTypeTransformer()
+        val result = transformer.transformType(mockedType, setOf(), mapOf())
         result `should be equal to` "Array<string>"
     }
 
@@ -40,7 +41,7 @@ internal class TypeScriptTypeTransformerTest {
         Mockito.`when`(mockedTypeVariableType.name).thenReturn("T")
         Mockito.`when`(mockedTypeVariableType.hasParameters).`it returns`(false)
 
-        Mockito.`when`(mockedType.parameters).`it returns`(hashMapOf(
+        Mockito.`when`(mockedType.parameters).`it returns`(mapOf(
                 "String" to mockedStringType,
                 "T" to mockedTypeVariableType
         ))
@@ -48,7 +49,8 @@ internal class TypeScriptTypeTransformerTest {
         `when`(mockedType.secondParameterType).thenReturn(mockedTypeVariableType)
 
         // Act
-        val result = TypeScriptTypeTransformer.transformType(mockedType, setOf(), mapOf("T" to mockedTypeVariableType))
+        val transformer = TypeScriptTypeTransformer()
+        val result = transformer.transformType(mockedType, setOf(), mapOf("T" to mockedTypeVariableType))
 
         // Assert
         result shouldEqual "{ [key: string]: T }"
@@ -63,17 +65,33 @@ internal class TypeScriptTypeTransformerTest {
         val mockedIntType = Mockito.mock(WrappedType::class.java)
         Mockito.`when`(mockedIntType.canonicalName).thenReturn(Int::class.java.canonicalName)
 
-        Mockito.`when`(mockedType.parameters).`it returns`(hashMapOf(
+        Mockito.`when`(mockedType.parameters).`it returns`(mapOf(
                 Int::class.java.simpleName to mockedIntType
         ))
         `when`(mockedType.firstParameterType).thenReturn(mockedIntType)
 
         // Act
-        val result = TypeScriptTypeTransformer.transformType(mockedType, setOf(), mapOf())
+        val transformer = TypeScriptTypeTransformer()
+        val result = transformer.transformType(mockedType, setOf(), mapOf())
 
         // Assert
         result shouldEqual "Array<number>"
+    }
 
+    @Test
+    fun `transformType - given int annotated with Test, return custom value transformed any`() {
+        // Assemble
+        Mockito.`when`(mockedType.canonicalName).`it returns`(Int::class.java.canonicalName)
+        Mockito.`when`(mockedType.isPrimitiveOrStringType).`it returns`(true)
+        Mockito.`when`(mockedType.annotationNames).`it returns`(setOf("Test"))
+
+        // Act
+        val customValueTransformer = ValueTypeTransformer({ t -> t.annotationNames.contains("Test")}, "string")
+        val transformer = TypeScriptTypeTransformer(listOf(customValueTransformer))
+        val result = transformer.transformType(mockedType, setOf(), mapOf())
+
+        // Assert
+        result shouldEqual "string"
     }
 
 }

@@ -1,3 +1,5 @@
+@file:Suppress("UNUSED_ANONYMOUS_PARAMETER")
+
 package com.laidpack.codegen
 
 import com.laidpack.codegen.moshi.TargetType

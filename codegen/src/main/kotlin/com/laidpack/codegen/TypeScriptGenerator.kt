@@ -12,20 +12,16 @@ import java.util.*
 
 internal class TypeScriptGenerator private constructor (
         target: TargetType,
-        private val typesWithinScope: Set<String>
+        private val typesWithinScope: Set<String>,
+        customTypeScriptValueTransformers: List<ValueTypeTransformer> = listOf()
     ) {
     private val className = target.name
     private val typeVariables = target.typeVariables
     private val isEnum = target.proto.classKind == ProtoBuf.Class.Kind.ENUM_CLASS
     private val superTypes = target.superTypes
-
-    var output = ""
-
+    val output = generateDefinition()
     private val propertiesOrEnumValues = target.propertiesOrEnumValues.values
-
-    init {
-        output = generateDefinition()
-    }
+    private val transformer = TypeScriptTypeTransformer(customTypeScriptValueTransformers)
 
     override fun toString(): String {
         return output
@@ -44,7 +40,7 @@ internal class TypeScriptGenerator private constructor (
     private fun generateProperties(): String {
         return propertiesOrEnumValues.joinToString ("") { property ->
             val propertyName = property.jsonName()
-            val propertyType = TypeScriptTypeTransformer.transformType(property.type, typesWithinScope, typeVariables)
+            val propertyType = transformer.transformType(property.type, typesWithinScope, typeVariables)
             val isNullable = if (property.type.nullable) "?" else ""
             "$indent$indent$propertyName$isNullable: $propertyType;\n"
         }
@@ -77,7 +73,7 @@ internal class TypeScriptGenerator private constructor (
         val bounds = type.bounds.values.filter { !(it nameEquals Any::class) }
         if (bounds.isNotEmpty()) {
             val joinedString = bounds.joinToString(" & ") {
-                TypeScriptTypeTransformer.transformType(it, typesWithinScope, typeVariables)
+                transformer.transformType(it, typesWithinScope, typeVariables)
             }
             return " extends $joinedString"
         }
@@ -95,7 +91,12 @@ internal class TypeScriptGenerator private constructor (
 
     companion object {
         private var indent = "  "
-        fun generate(moduleName: String, targetTypes: HashMap<String, TargetType>, indent: String): String {
+        fun generate(
+                moduleName: String,
+                targetTypes: HashMap<String, TargetType>,
+                indent: String,
+                customTypeScriptValueTransformers: List<ValueTypeTransformer> = listOf()
+        ): String {
             this.indent = indent
             val targetTypeNames = targetTypes.keys
             val sortedTypeNames = targetTypeNames.sorted()
@@ -103,7 +104,12 @@ internal class TypeScriptGenerator private constructor (
             val timestamp = "/* generated @ ${LocalDateTime.now()} */\n"
             val moduleStart = "declare module \"$moduleName\" {\n"
             val moduleContent = sortedTypeNames.joinToString("\n") { key ->
-                var generatedTypeScript = TypeScriptGenerator(targetTypes[key]!!, targetTypeNames)
+                val targetType = targetTypes[key] as TargetType
+                val generatedTypeScript = TypeScriptGenerator(
+                        targetType,
+                        targetTypeNames,
+                        customTypeScriptValueTransformers
+                )
                 generatedTypeScript.output
             }
             val moduleEnd = "}\n"

@@ -1,18 +1,12 @@
 package com.laidpack.codegen
 
 import com.laidpack.codegen.moshi.TargetType
-import com.squareup.kotlinpoet.asTypeName
-import javax.annotation.processing.Messager
 import javax.lang.model.element.Element
-import javax.lang.model.element.TypeElement
-import javax.lang.model.type.TypeKind
-import javax.lang.model.util.Elements
-import javax.lang.model.util.Types
 import javax.tools.Diagnostic
 
 internal object TargetResolver {
     fun resolve(element: Element, context: TargetContext): List<TargetType> {
-        context.failOnError = true
+        context.abortOnError = true
         context.targetingTypscriptAnnotatedType = true
 
         val targetTypes = mutableListOf<TargetType>()
@@ -28,7 +22,7 @@ internal object TargetResolver {
          // TODO: refactor state flow for better structure
         **/
         context.targetingTypscriptAnnotatedType = false
-        context.failOnError = false
+        context.abortOnError = false
         var extraTypes = context.typesToBeAddedToScope.toMap()
         while (extraTypes.isNotEmpty()) {
             extraTypes.forEach {

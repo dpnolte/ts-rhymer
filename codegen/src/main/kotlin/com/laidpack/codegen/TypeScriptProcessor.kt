@@ -7,7 +7,6 @@ import me.eugeniomarletti.kotlin.metadata.*
 import me.eugeniomarletti.kotlin.processing.KotlinAbstractProcessor
 import java.io.File
 import java.nio.file.Files
-import java.nio.file.Path
 import java.nio.file.Paths
 import javax.annotation.processing.Messager
 import javax.annotation.processing.ProcessingEnvironment
@@ -21,32 +20,28 @@ import javax.tools.Diagnostic
 
 
 @AutoService(Processor::class)
-class TypeScriptProcessor: KotlinAbstractProcessor(), KotlinMetadataUtils {
-
-    companion object {
-        const val OPTION_MODULE = "typescript.module"
-        const val OPTION_DESTINATION = "typescript.outputDir"
-        const val OPTION_INDENT = "typescript.indent"
-    }
-
+open class TypeScriptProcessor(
+        private val customTypeScriptValueTransformers: List<ValueTypeTransformer> = listOf()
+) : KotlinAbstractProcessor(), KotlinMetadataUtils {
     private val annotation = TypeScript::class.java
     private var moduleName: String = "NativeTypes"
     private var indent: String = "  "
     private var customOutputDir: String? = null
-    private val fileName = "types.d.ts"
+    private var fileName = "types.d.ts"
     private var shouldAppendToFile = false
 
     override fun getSupportedAnnotationTypes() = setOf(annotation.canonicalName)
 
     override fun getSupportedSourceVersion(): SourceVersion = SourceVersion.latest()
 
-    override fun getSupportedOptions() = setOf(OPTION_MODULE, OPTION_DESTINATION, OPTION_INDENT, kaptGeneratedOption)
+    override fun getSupportedOptions() = setOf(OPTION_MODULE, OPTION_OUTPUTDIR, OPTION_INDENT, kaptGeneratedOption)
 
     override fun init(processingEnv: ProcessingEnvironment) {
         super.init(processingEnv)
         moduleName = processingEnv.options[OPTION_MODULE] ?: moduleName
         indent = processingEnv.options[OPTION_INDENT] ?: indent
-        customOutputDir = processingEnv.options[OPTION_DESTINATION]
+        customOutputDir = processingEnv.options[OPTION_OUTPUTDIR]
+        fileName = processingEnv.options[OPTION_FILENAME] ?: fileName
     }
 
     override fun process(annotations: Set<TypeElement>, roundEnv: RoundEnvironment): Boolean {
@@ -61,7 +56,12 @@ class TypeScriptProcessor: KotlinAbstractProcessor(), KotlinMetadataUtils {
         }
 
         if (targetedTypes.isNotEmpty()) {
-            val content = TypeScriptGenerator.generate(moduleName, targetedTypes, indent)
+            val content = TypeScriptGenerator.generate(
+                    moduleName,
+                    targetedTypes,
+                    indent,
+                    customTypeScriptValueTransformers
+            )
             var outputDir : String = customOutputDir ?: options[kaptGeneratedOption] ?: System.getProperty("user.dir")
             if (!outputDir.endsWith(File.separator))
                 outputDir += File.separator
@@ -72,7 +72,7 @@ class TypeScriptProcessor: KotlinAbstractProcessor(), KotlinMetadataUtils {
                 return false
             }
 
-            var file = File("$outputDir", fileName)
+            var file = File(outputDir, fileName)
             file.createNewFile() // overwrite any existing file
             if (!shouldAppendToFile) {
                 file.writeText(content)
@@ -95,19 +95,25 @@ class TypeScriptProcessor: KotlinAbstractProcessor(), KotlinMetadataUtils {
                 typesWithinScope =  mutableSetOf(),
                 typesWithTypeScriptAnnotation = mutableSetOf(),
                 typesToBeAddedToScope = hashMapOf(),
-                failOnError = true
+                abortOnError = true
         )
+    }
+    companion object {
+        private const val OPTION_MODULE = "typescript.module"
+        private const val OPTION_OUTPUTDIR = "typescript.outputDir"
+        private const val OPTION_INDENT = "typescript.indent"
+        private const val OPTION_FILENAME = "typescript.filename"
     }
 }
 
-internal data class TargetContext (
+internal class TargetContext (
         val messager: Messager,
         val elementUtils: Elements,
         val typeUtils: Types,
         val typesWithinScope: MutableSet<String>,
         val typesWithTypeScriptAnnotation: MutableSet<String>,
         var typesToBeAddedToScope: MutableMap<String, TypeElement>,
-        var failOnError: Boolean
+        var abortOnError: Boolean
 ) {
     var targetingTypscriptAnnotatedType = true // vs targeting a base type
 }
