@@ -19,10 +19,8 @@ internal class TypeScriptGenerator private constructor (
     private val typeVariables = target.typeVariables
     private val isEnum = target.proto.classKind == ProtoBuf.Class.Kind.ENUM_CLASS
     private val superTypes = target.superTypes
-    val output = generateDefinition()
-    private val propertiesOrEnumValues = if (target.propertiesOrEnumValues.isNotEmpty()) {
-        target.propertiesOrEnumValues.values
-    } else listOf()
+    val output by lazy {generateDefinition()}
+    private val propertiesOrEnumValues = target.propertiesOrEnumValues.values
     private val transformer = TypeScriptTypeTransformer(customTypeScriptValueTransformers)
 
     override fun toString(): String {
@@ -40,12 +38,14 @@ internal class TypeScriptGenerator private constructor (
     }
 
     private fun generateProperties(): String {
-        return propertiesOrEnumValues.joinToString ("") { property ->
-            val propertyName = property.jsonName()
-            val propertyType = transformer.transformType(property.type, typesWithinScope, typeVariables)
-            val isNullable = if (property.type.nullable) "?" else ""
-            "$indent$indent$propertyName$isNullable: $propertyType;\n"
-        }
+        return propertiesOrEnumValues
+                .filter { it != null }
+                .joinToString ("") { property ->
+                    val propertyName = property.jsonName()
+                    val propertyType = transformer.transformType(property.type, typesWithinScope, typeVariables)
+                    val isNullable = if (property.type.nullable) "?" else ""
+                    "$indent$indent$propertyName$isNullable: $propertyType;\n"
+                }
     }
 
     private fun generateEnum(): String {
