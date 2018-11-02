@@ -38,12 +38,14 @@ internal class TypeScriptGenerator private constructor (
     }
 
     private fun generateProperties(): String {
-        return propertiesOrEnumValues.joinToString ("") { property ->
-            val propertyName = property.jsonName()
-            val propertyType = transformer.transformType(property.type, typesWithinScope, typeVariables)
-            val isNullable = if (property.type.nullable) "?" else ""
-            "$indent$indent$propertyName$isNullable: $propertyType;\n"
-        }
+        return if (propertiesOrEnumValues.isNotEmpty()) {
+            propertiesOrEnumValues.joinToString("") { property ->
+                val propertyName = property.jsonName()
+                val propertyType = transformer.transformType(property.type, typesWithinScope, typeVariables)
+                val isNullable = if (property.type.nullable) "?" else ""
+                "$indent$indent$propertyName$isNullable: $propertyType;\n"
+            }
+        } else ""
     }
 
     private fun generateEnum(): String {
