@@ -1,16 +1,13 @@
-package com.laidpack.codegen
+package com.laidpack.typescript.codegen
 
-import com.google.auto.common.AnnotationMirrors
-import com.squareup.kotlinpoet.TypeName
 import com.squareup.moshi.Json
-import com.squareup.moshi.JsonQualifier
 import me.eugeniomarletti.kotlin.metadata.shadow.metadata.ProtoBuf
 import javax.lang.model.element.*
 
-/** A enum value in user code that maps to enum type. */
+/** A enum value in user code that maps to enum bodyType. */
 internal data class TargetEnumValue(
         override val name: String,
-        override val type: WrappedType,
+        override val bodyType: WrappedBodyType,
         val ordinal: Int,
         val proto: ProtoBuf.EnumEntry,
         private val field: VariableElement?

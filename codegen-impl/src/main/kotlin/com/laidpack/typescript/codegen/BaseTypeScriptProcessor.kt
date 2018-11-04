@@ -1,9 +1,8 @@
-package com.laidpack.codegen
+package com.laidpack.typescript.codegen
 
 import com.laidpack.annotation.TypeScript
-import com.laidpack.codegen.moshi.TargetType
+import com.laidpack.typescript.codegen.moshi.ITargetType
 import com.squareup.kotlinpoet.ClassName
-import com.squareup.kotlinpoet.asTypeName
 import me.eugeniomarletti.kotlin.metadata.*
 import me.eugeniomarletti.kotlin.processing.KotlinAbstractProcessor
 import java.io.File
@@ -18,10 +17,19 @@ import javax.lang.model.util.Elements
 import javax.lang.model.util.Types
 import javax.tools.Diagnostic
 
-
+typealias DefinitionProcessor = (targetType: ITargetType) -> String?
+typealias FileProcessor = (
+        targetTypes: HashMap<String, ITargetType>,
+        rootPackageNames: Set<String>,
+        packageNames: Set<String>
+) -> String?
 abstract class BaseTypeScriptProcessor(
-        private val customTypeScriptValueTransformers: List<ValueTypeTransformer> = listOf(),
-        private val generateOnlyWithinModule: Boolean = false
+        private val customTransformers: List<TypeTransformer> = listOf(),
+        private val constrainToCurrentModulePackage: Boolean = false,
+        private val filePreProcessors: List<FileProcessor> = listOf(),
+        private val filePostProcessors: List<FileProcessor> = listOf(),
+        private val definitionPreProcessors: List<DefinitionProcessor> = listOf(),
+        private val definitionPostProcessors: List<DefinitionProcessor> = listOf()
 ) : KotlinAbstractProcessor(), KotlinMetadataUtils {
     private val annotation = TypeScript::class.java
     private var moduleName: String = "NativeTypes"
@@ -47,8 +55,9 @@ abstract class BaseTypeScriptProcessor(
     override fun process(annotations: Set<TypeElement>, roundEnv: RoundEnvironment): Boolean {
 
         val context = createContext()
-        val targetedTypes = hashMapOf<String, TargetType>()
+        val targetedTypes = hashMapOf<String, ITargetType>()
         val rootPackageNames = mutableSetOf<String>()
+        val packageNames = mutableSetOf<String>()
         for (element in roundEnv.getElementsAnnotatedWith(annotation)) {
             val typeName = element.asType().asTypeName()
             if (typeName is ClassName) {
@@ -57,6 +66,7 @@ abstract class BaseTypeScriptProcessor(
             val foundTypes = TargetResolver.resolve(element, context)
             foundTypes.forEach {
                 targetedTypes[it.name.simpleName] = it
+                packageNames.add(it.name.packageName)
             }
         }
 
@@ -65,9 +75,14 @@ abstract class BaseTypeScriptProcessor(
                     moduleName,
                     targetedTypes,
                     indent,
-                    customTypeScriptValueTransformers,
-                    generateOnlyWithinModule,
-                    rootPackageNames
+                    customTransformers,
+                    constrainToCurrentModulePackage,
+                    rootPackageNames,
+                    packageNames,
+                    filePreProcessors,
+                    filePostProcessors,
+                    definitionPreProcessors,
+                    definitionPostProcessors
             )
             var outputDir : String = customOutputDir ?: options[kaptGeneratedOption] ?: System.getProperty("user.dir")
             if (!outputDir.endsWith(File.separator))
@@ -122,5 +137,5 @@ internal class TargetContext (
         var typesToBeAddedToScope: MutableMap<String, TypeElement>,
         var abortOnError: Boolean
 ) {
-    var targetingTypscriptAnnotatedType = true // vs targeting a base type
+    var targetingTypscriptAnnotatedType = true // vs targeting a base bodyType
 }

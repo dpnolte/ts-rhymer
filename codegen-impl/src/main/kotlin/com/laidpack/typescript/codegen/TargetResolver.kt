@@ -1,6 +1,6 @@
-package com.laidpack.codegen
+package com.laidpack.typescript.codegen
 
-import com.laidpack.codegen.moshi.TargetType
+import com.laidpack.typescript.codegen.moshi.TargetType
 import javax.lang.model.element.Element
 import javax.tools.Diagnostic
 
@@ -15,10 +15,10 @@ internal object TargetResolver {
             targetTypes.add(rootType)
 
         /**
-         * extra type can stem from 3 sources:
-         // 1. declared types in properties - e.g., type Y in class X { val test = List<Y>() } -> see WrappedType.resolvePropertyType
+         * extra bodyType can stem from 3 sources:
+         // 1. declared types in properties - e.g., bodyType Y in class X { val test = List<Y>() } -> see WrappedBodyType.resolvePropertyType
          // 2. super classes --> see TargetType.resolveSuperTypes
-         // 3. bounds in type variables - e.g., type Y in class X <T : Y> { val test = T } --> see WrappedType.resolveGenericClassDeclaration
+         // 3. bounds in bodyType variables - e.g., bodyType Y in class X <T : Y> { val test = T } --> see WrappedBodyType.resolveGenericClassDeclaration
          // TODO: don't capture target types in the context instance (see typesToBeAddedToScope)
         **/
         context.targetingTypscriptAnnotatedType = false

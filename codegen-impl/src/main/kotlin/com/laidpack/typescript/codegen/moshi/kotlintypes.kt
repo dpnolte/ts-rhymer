@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.laidpack.codegen.moshi
+package com.laidpack.typescript.codegen.moshi
 
 import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.ParameterizedTypeName
@@ -23,7 +23,7 @@ internal fun TypeName.rawType(): ClassName {
   return when (this) {
     is ClassName -> this
     is ParameterizedTypeName -> rawType
-    else -> throw IllegalArgumentException("Cannot get raw type from $this")
+    else -> throw IllegalArgumentException("Cannot get raw bodyType from $this")
   }
 }
 

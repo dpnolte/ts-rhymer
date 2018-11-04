@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.laidpack.codegen.moshi
+package com.laidpack.typescript.codegen.moshi
 
 import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.ParameterizedTypeName
@@ -23,8 +23,8 @@ import com.squareup.kotlinpoet.WildcardTypeName
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 
 /**
- * Resolves type parameters against a type declaration. Use this to fill in type variables with
- * their actual type parameters.
+ * Resolves bodyType parameters against a bodyType declaration. Use this to fill in bodyType variables with
+ * their actual bodyType parameters.
  */
 internal open class TypeResolver {
   open fun resolveTypeVariable(typeVariable: TypeVariableName): TypeName = typeVariable
@@ -50,14 +50,14 @@ internal open class TypeResolver {
           }
           else -> {
             throw IllegalArgumentException(
-                "Unrepresentable wildcard type. Cannot have more than one bound: $typeName")
+                "Unrepresentable wildcard bodyType. Cannot have more than one bound: $typeName")
           }
         }
       }
 
       is TypeVariableName -> resolveTypeVariable(typeName)
 
-      else -> throw IllegalArgumentException("Unrepresentable type: $typeName")
+      else -> throw IllegalArgumentException("Unrepresentable bodyType: $typeName")
     }
   }
 }

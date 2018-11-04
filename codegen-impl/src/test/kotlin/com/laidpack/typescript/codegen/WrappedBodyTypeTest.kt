@@ -1,9 +1,8 @@
 @file:Suppress("UNUSED_ANONYMOUS_PARAMETER")
 
-package com.laidpack.codegen
+package com.laidpack.typescript.codegen
 
-import com.laidpack.codegen.moshi.TargetType
-import com.laidpack.codegen.moshi.rawType
+import com.laidpack.typescript.codegen.moshi.rawType
 import com.squareup.kotlinpoet.*
 import org.amshove.kluent.shouldEqual
 import org.junit.Before
@@ -11,14 +10,13 @@ import org.junit.Test
 import org.mockito.Mockito
 import java.util.LinkedHashSet
 import javax.lang.model.element.TypeElement
-import javax.lang.model.type.DeclaredType
 import javax.lang.model.type.TypeKind
 import javax.lang.model.type.TypeMirror
 import javax.lang.model.util.Elements
 import javax.lang.model.util.Types
 
-internal class WrappedTypeTest {
-    private val emptyTypeVariablesMap = HashMap<String, WrappedType>()
+internal class WrappedBodyTypeTest {
+    private val emptyTypeVariablesMap = HashMap<String, WrappedBodyType>()
     private lateinit var mockedElements: Elements
     private lateinit var mockedTypes: Types
     private lateinit var mockedContext: TargetContext
@@ -38,10 +36,10 @@ internal class WrappedTypeTest {
     @Test
     fun `performActionsOnCurrentAndNestedTypes - given type C'A'List'String, then return C, A, List, and String,`() {
         // given
-        val mockedType = Mockito.mock(WrappedType::class.java)
-        val mockedSubTemplateType = Mockito.mock(WrappedType::class.java)
-        val mockedSubListType = Mockito.mock(WrappedType::class.java)
-        val mockedStringType = Mockito.mock(WrappedType::class.java)
+        val mockedType = Mockito.mock(WrappedBodyType::class.java)
+        val mockedSubTemplateType = Mockito.mock(WrappedBodyType::class.java)
+        val mockedSubListType = Mockito.mock(WrappedBodyType::class.java)
+        val mockedStringType = Mockito.mock(WrappedBodyType::class.java)
         Mockito.`when`(mockedType.name).thenReturn("C")
         Mockito.`when`(mockedType.hasParameters).thenReturn(true)
         Mockito.`when`(mockedType.parameters).thenReturn(hashMapOf("A" to mockedSubTemplateType))
@@ -58,8 +56,8 @@ internal class WrappedTypeTest {
         Mockito.`when`(mockedStringType.hasParameters).thenReturn(false)
 
         val list = mutableListOf<String>()
-        val action = {type: WrappedType, context: TargetContext-> list.add(type.name!!)}
-        WrappedType.performActionsOnTypeAndItsNestedTypes(mockedType, mockedContext, action)
+        val action = { bodyType: WrappedBodyType, context: TargetContext-> list.add(bodyType.name!!)}
+        WrappedBodyType.performActionsOnTypeAndItsNestedTypes(mockedType, mockedContext, action)
 
         list[0] shouldEqual "C"
         list[1] shouldEqual "A"
@@ -73,7 +71,7 @@ internal class WrappedTypeTest {
         Mockito.`when`(mockedTypeName.rawType().canonicalName).thenReturn(List::class.java.canonicalName)
         Mockito.`when`(mockedTypeName.rawType().simpleName).thenReturn(List::class.java.simpleName)
 
-        val wrappedType = WrappedType.resolvePropertyType (mockedTypeName, null, emptyTypeVariablesMap, mockedContext)
+        val wrappedType = WrappedBodyType.resolvePropertyType (mockedTypeName, null, emptyTypeVariablesMap, mockedContext)
 
         wrappedType.collectionType shouldEqual CollectionType.Iterable
     }
@@ -84,7 +82,7 @@ internal class WrappedTypeTest {
         Mockito.`when`(mockedTypeName.rawType().canonicalName).thenReturn(MutableList::class.java.canonicalName)
         Mockito.`when`(mockedTypeName.rawType().simpleName).thenReturn(MutableList::class.java.simpleName)
 
-        val wrappedType = WrappedType.resolvePropertyType (mockedTypeName, null, emptyTypeVariablesMap, mockedContext)
+        val wrappedType = WrappedBodyType.resolvePropertyType (mockedTypeName, null, emptyTypeVariablesMap, mockedContext)
 
         wrappedType.collectionType shouldEqual CollectionType.Iterable
     }
@@ -96,13 +94,13 @@ internal class WrappedTypeTest {
         Mockito.`when`(mockedTypeName.rawType().simpleName).thenReturn(HashMap::class.java.simpleName)
         Mockito.`when`(mockedElements.getTypeElement(HashMap::class.java.canonicalName)).thenReturn(mockedTypeElement)
 
-        WrappedType.getSuperTypeNames = { a, b ->
+        WrappedBodyType.getSuperTypeNames = { a, b ->
             HashMap::class.supertypes.map {
                 it.asTypeName()
             }
         }
 
-        val wrappedType = WrappedType.resolvePropertyType (mockedTypeName, null, emptyTypeVariablesMap, mockedContext)
+        val wrappedType = WrappedBodyType.resolvePropertyType (mockedTypeName, null, emptyTypeVariablesMap, mockedContext)
 
         wrappedType.collectionType shouldEqual CollectionType.Map
     }
@@ -114,13 +112,13 @@ internal class WrappedTypeTest {
         Mockito.`when`(mockedTypeName.rawType().simpleName).thenReturn(LinkedHashMap::class.java.simpleName)
         Mockito.`when`(mockedElements.getTypeElement(LinkedHashMap::class.java.canonicalName)).thenReturn(mockedTypeElement)
 
-        WrappedType.getSuperTypeNames = { a, b ->
+        WrappedBodyType.getSuperTypeNames = { a, b ->
             LinkedHashMap::class.supertypes.map {
                 it.asTypeName()
             }
         }
 
-        val wrappedType = WrappedType.resolvePropertyType (mockedTypeName, null, emptyTypeVariablesMap, mockedContext)
+        val wrappedType = WrappedBodyType.resolvePropertyType (mockedTypeName, null, emptyTypeVariablesMap, mockedContext)
 
         wrappedType.collectionType shouldEqual CollectionType.Map
     }
@@ -133,16 +131,16 @@ internal class WrappedTypeTest {
         Mockito.`when`(mockedTypeName.rawType().simpleName).thenReturn(LinkedHashSet::class.java.simpleName)
         Mockito.`when`(mockedElements.getTypeElement(LinkedHashSet::class.java.canonicalName)).thenReturn(mockedTypeElement)
 
-        WrappedType.getSuperTypeNames = { a, b ->
+        WrappedBodyType.getSuperTypeNames = { a, b ->
             LinkedHashSet::class.supertypes.map {
                 it.asTypeName()
             }
         }
-        WrappedType.getMirror = { a, b ->
+        WrappedBodyType.getMirror = { a, b ->
             Mockito.mock(TypeMirror::class.java)
         }
 
-        val wrappedType = WrappedType.resolvePropertyType (mockedTypeName, null, emptyTypeVariablesMap, mockedContext)
+        val wrappedType = WrappedBodyType.resolvePropertyType (mockedTypeName, null, emptyTypeVariablesMap, mockedContext)
 
         wrappedType.collectionType shouldEqual CollectionType.Set
     }
@@ -154,7 +152,7 @@ internal class WrappedTypeTest {
         Mockito.`when`(mockedTypeName.rawType().canonicalName).thenReturn(Pair::class.java.canonicalName)
         Mockito.`when`(mockedTypeName.rawType().simpleName).thenReturn(Pair::class.java.simpleName)
 
-        val wrappedType = WrappedType.resolvePropertyType (mockedTypeName, null, emptyTypeVariablesMap, mockedContext)
+        val wrappedType = WrappedBodyType.resolvePropertyType (mockedTypeName, null, emptyTypeVariablesMap, mockedContext)
 
         wrappedType.collectionType shouldEqual CollectionType.Pair
     }
@@ -175,17 +173,17 @@ internal class WrappedTypeTest {
         Mockito.`when`(mockedTypeName.typeArguments).thenReturn(listOf(mockedtypeArgument1, mockedTypeArgument2))
 
         Mockito.`when`(mockedElements.getTypeElement(HashMap::class.java.canonicalName)).thenReturn(mockedTypeElement)
-        WrappedType.getSuperTypeNames = { a, b ->
+        WrappedBodyType.getSuperTypeNames = { a, b ->
             HashMap::class.supertypes.map {
                 it.asTypeName()
             }
         }
-        WrappedType.getMirror = { a, b ->
+        WrappedBodyType.getMirror = { a, b ->
             Mockito.mock(TypeMirror::class.java)
         }
 
         // act
-        val wrappedType = WrappedType.resolvePropertyType (mockedTypeName, null, emptyTypeVariablesMap, mockedContext)
+        val wrappedType = WrappedBodyType.resolvePropertyType (mockedTypeName, null, emptyTypeVariablesMap, mockedContext)
 
         // assert
         wrappedType.collectionType shouldEqual CollectionType.Map
@@ -208,17 +206,17 @@ internal class WrappedTypeTest {
         Mockito.`when`(mockedTypeName.typeArguments).thenReturn(listOf(mockedTypeArgument1))
 
         Mockito.`when`(mockedElements.getTypeElement(MutableList::class.java.canonicalName)).thenReturn(mockedTypeElement)
-        WrappedType.getSuperTypeNames = { a, b ->
+        WrappedBodyType.getSuperTypeNames = { a, b ->
             MutableList::class.supertypes.map {
                 it.asTypeName()
             }
         }
-        WrappedType.getMirror = { a, b ->
+        WrappedBodyType.getMirror = { a, b ->
             Mockito.mock(TypeMirror::class.java)
         }
 
         // act
-        val wrappedType = WrappedType.resolvePropertyType (mockedTypeName, null, emptyTypeVariablesMap, mockedContext)
+        val wrappedType = WrappedBodyType.resolvePropertyType (mockedTypeName, null, emptyTypeVariablesMap, mockedContext)
 
         // assert
         wrappedType.collectionType shouldEqual CollectionType.Iterable

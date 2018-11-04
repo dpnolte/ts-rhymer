@@ -1,10 +1,8 @@
-package com.laidpack.codegen
+package com.laidpack.typescript.codegen
 
-import com.squareup.kotlinpoet.TypeName
-
-internal interface TargetPropertyOrEnumValue {
+interface TargetPropertyOrEnumValue {
     val name: String
-    val type: WrappedType
+    val bodyType: IWrappedBodyType
 
     /** Returns the @Json name of this property, or this property's name if none is provided. */
     fun jsonName(): String

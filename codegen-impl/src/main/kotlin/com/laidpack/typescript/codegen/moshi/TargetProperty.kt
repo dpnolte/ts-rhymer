@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.laidpack.codegen.moshi
+package com.laidpack.typescript.codegen.moshi
 
-import com.laidpack.codegen.TargetPropertyOrEnumValue
-import com.laidpack.codegen.WrappedType
+import com.laidpack.typescript.codegen.TargetPropertyOrEnumValue
+import com.laidpack.typescript.codegen.WrappedBodyType
 import com.squareup.moshi.Json
 import me.eugeniomarletti.kotlin.metadata.shadow.metadata.ProtoBuf.Property
 import javax.lang.model.element.*
@@ -25,7 +25,7 @@ import javax.lang.model.element.*
 /** A property in user code that maps to JSON. */
 internal data class TargetProperty(
         override val name: String,
-        override val type: WrappedType,
+        override val bodyType: WrappedBodyType,
         private val proto: Property,
         private val annotationHolder: ExecutableElement?,
         private val field: VariableElement?,

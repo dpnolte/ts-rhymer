@@ -1,6 +1,6 @@
-package com.laidpack.codegen
+package com.laidpack.typescript.codegen
 
-import com.laidpack.codegen.moshi.rawType
+import com.laidpack.typescript.codegen.moshi.rawType
 import com.squareup.kotlinpoet.*
 import java.lang.IndexOutOfBoundsException
 import javax.lang.model.element.VariableElement
@@ -18,17 +18,17 @@ enum class CollectionType {
     None
 }
 
-internal class WrappedType private constructor (
+internal class WrappedBodyType private constructor (
         override val typeName: TypeName,
         override val variableElement: VariableElement?,
         override val isPropertyValue: Boolean,
         override val isTypeVariable: Boolean,
         override val isEnumValue: Boolean,
         override val isBound: Boolean,
-        override val parameters: Map<String, WrappedType>,
+        override val parameters: Map<String, WrappedBodyType>,
         override val annotationNames: Set<String>,
-        private val _bounds: Map<String, WrappedType>
-) : IWrappedType {
+        private val _bounds: Map<String, WrappedBodyType>
+) : IWrappedBodyType {
     override val hasRawType = typeName is ClassName || typeName is ParameterizedTypeName
     override val isInstantiable = hasRawType && !isEnumValue
     override val nullable = typeName.nullable
@@ -55,9 +55,9 @@ internal class WrappedType private constructor (
         else -> false
     }}
 
-    override val bounds: Map<String, WrappedType>
+    override val bounds: Map<String, WrappedBodyType>
         get() {
-            if (!isTypeVariable) throw IllegalStateException("Bounds are only available for type variables. Type is $name")
+            if (!isTypeVariable) throw IllegalStateException("Bounds are only available for bodyType variables. Type is $name")
             return _bounds
         }
 
@@ -72,18 +72,18 @@ internal class WrappedType private constructor (
     override val isArray: Boolean
         get() = collectionType == CollectionType.Array
 
-    override val firstParameterType: WrappedType
+    override val firstParameterType: WrappedBodyType
         get() = getParameterTypeAt(0)
-    override val secondParameterType: WrappedType
+    override val secondParameterType: WrappedBodyType
         get() = getParameterTypeAt(1)
 
-    fun getParameterTypeAt(index: Int): WrappedType {
+    fun getParameterTypeAt(index: Int): WrappedBodyType {
         if (!hasParameters || typeName !is ParameterizedTypeName) throw IllegalStateException("Type $name has no template parameters")
         if (index < 0 || typeName.typeArguments.size < index)  throw IndexOutOfBoundsException("Template parameter index $index is out of bounds")
         val typeArgument = typeName.typeArguments[index]
         val name = resolveName(typeArgument) ?: throw IllegalStateException("Parameter has no name")
         if (!parameters.containsKey(name)) throw IllegalStateException("Parameter with name '$name' is not in parameters map")
-        return parameters[name] as WrappedType
+        return parameters[name] as WrappedBodyType
     }
 
     companion object {
@@ -91,7 +91,7 @@ internal class WrappedType private constructor (
             context.typeUtils.directSupertypes(typeMirror).map { it.asTypeName() }
         }
 
-        var getMirror = {wrappedType: WrappedType, context: TargetContext -> getMirrorDefaultImpl(wrappedType, context)}
+        var getMirror = { wrappedBodyType: WrappedBodyType, context: TargetContext -> getMirrorDefaultImpl(wrappedBodyType, context)}
 
         fun resolveName(typeName: TypeName): String? {
             return when (typeName) {
@@ -103,16 +103,16 @@ internal class WrappedType private constructor (
         }
 
         /**
-        wrap type variable,
-        add bounds to wrapped type variable
+        wrap bodyType variable,
+        add bounds to wrapped bodyType variable
         find current and nested bound types
         for every bound,
         -- check if there are any new declared types
         -- resolve collection types
          **/
 
-        fun resolveGenericClassDeclaration(typeVariableNames: Map<String, TypeVariableName>, context: TargetContext): HashMap<String, WrappedType> {
-            val typeVariables = HashMap<String, WrappedType>()
+        fun resolveGenericClassDeclaration(typeVariableNames: Map<String, TypeVariableName>, context: TargetContext): HashMap<String, WrappedBodyType> {
+            val typeVariables = HashMap<String, WrappedBodyType>()
             if (typeVariableNames.isEmpty()) return typeVariables
 
             typeVariableNames.values.forEach { typeVariableName ->
@@ -130,17 +130,17 @@ internal class WrappedType private constructor (
         }
 
         /**
-        wrap property type
-        check if value is a declared class type variable
-        find nested type variables..
+        wrap property bodyType
+        check if value is a declared class bodyType variable
+        find nested bodyType variables..
         wrap nested types
         check if there are any new declared types
         resolve collection types
          **/
 
-        fun resolvePropertyType(typeName: TypeName, variableElement: VariableElement?, typeVariables: Map<String, WrappedType>, context: TargetContext): WrappedType {
+        fun resolvePropertyType(typeName: TypeName, variableElement: VariableElement?, bodyTypeVariables: Map<String, WrappedBodyType>, context: TargetContext): WrappedBodyType {
             val type = wrapPropertyType(typeName, variableElement)
-            if (typeVariables.containsKey(type.name)) {
+            if (bodyTypeVariables.containsKey(type.name)) {
                 type.isReturningTypeVariable = true
             }
             this.performActionsOnTypeAndItsNestedTypes(type, context) { foundType, c ->
@@ -150,7 +150,7 @@ internal class WrappedType private constructor (
             return type
         }
 
-        fun resolveEnumValueType(typeName: TypeName): WrappedType {
+        fun resolveEnumValueType(typeName: TypeName): WrappedBodyType {
             return wrapEnumValueType(typeName)
         }
 
@@ -161,8 +161,8 @@ internal class WrappedType private constructor (
                 isTypeVariable: Boolean,
                 isEnumValue: Boolean,
                 isBound: Boolean
-        ): WrappedType {
-            val wrappedType = WrappedType(
+        ): WrappedBodyType {
+            val wrappedType = WrappedBodyType(
                     typeName,
                     variableElement,
                     isPropertyValue,
@@ -177,11 +177,11 @@ internal class WrappedType private constructor (
             return wrappedType
         }
 
-        private fun getParameterTypes(typeName: TypeName): Map<String, WrappedType> {
-            val parameters = mutableMapOf<String, WrappedType>()
+        private fun getParameterTypes(typeName: TypeName): Map<String, WrappedBodyType> {
+            val parameters = mutableMapOf<String, WrappedBodyType>()
             if (typeName is ParameterizedTypeName) {
                 typeName.typeArguments.forEach {
-                    val name = WrappedType.resolveName(it)
+                    val name = WrappedBodyType.resolveName(it)
                     if (name != null && !parameters.containsKey(name)) {
                         parameters[name] = wrapTypeVariable(it)
                     }
@@ -202,11 +202,11 @@ internal class WrappedType private constructor (
             return annotationNames
         }
 
-        private fun getBounds(isTypeVariable: Boolean, typeName: TypeName): Map<String, WrappedType> {
-            val bounds = mutableMapOf<String, WrappedType>()
+        private fun getBounds(isTypeVariable: Boolean, typeName: TypeName): Map<String, WrappedBodyType> {
+            val bounds = mutableMapOf<String, WrappedBodyType>()
             if (isTypeVariable && typeName is TypeVariableName) {
                 typeName.bounds.forEach {
-                    val name = WrappedType.resolveName(it)
+                    val name = WrappedBodyType.resolveName(it)
                     if (name != null) {
                         val boundType = wrapBoundType(it)
                         bounds[name] = boundType
@@ -216,128 +216,128 @@ internal class WrappedType private constructor (
             return bounds
         }
 
-        private fun injectJavaMirroredCanonicalName(type: WrappedType) {
-            if (type.variableElement != null ) {
-                val typeMirror = type.variableElement.asType()
-                injectJavaMirroredCanonicalName(type, typeMirror)
+        private fun injectJavaMirroredCanonicalName(bodyType: WrappedBodyType) {
+            if (bodyType.variableElement != null ) {
+                val typeMirror = bodyType.variableElement.asType()
+                injectJavaMirroredCanonicalName(bodyType, typeMirror)
             }
         }
 
-        private fun injectJavaMirroredCanonicalName(type: WrappedType, typeMirror: TypeMirror) {
+        private fun injectJavaMirroredCanonicalName(bodyType: WrappedBodyType, typeMirror: TypeMirror) {
             val javaTypeName = typeMirror.asTypeName()
             if (javaTypeName is ClassName || javaTypeName is ParameterizedTypeName) {
-                type.javaCanonicalName = javaTypeName.rawType().canonicalName
+                bodyType.javaCanonicalName = javaTypeName.rawType().canonicalName
             }
-            if (type.typeName is ParameterizedTypeName && typeMirror is DeclaredType) {
+            if (bodyType.typeName is ParameterizedTypeName && typeMirror is DeclaredType) {
                 val max = typeMirror.typeArguments.size -1
                 for (i in 0..max) {
                     val parameterTypeMirror= typeMirror.typeArguments[i]
-                    val parameterWrappedType = type.getParameterTypeAt(i)
+                    val parameterWrappedType = bodyType.getParameterTypeAt(i)
                     injectJavaMirroredCanonicalName(parameterWrappedType, parameterTypeMirror)
                 }
             }
         }
 
-        private fun addTypeToScopeIfNewDeclaredType(type: WrappedType, context: TargetContext) {
-            if (!type.isPrimitiveOrStringType && type.isInstantiable && type.collectionType == CollectionType.None
-                    && !context.typesWithinScope.contains(type.name) && !context.typesToBeAddedToScope.containsKey(type.name)) {
-                val typeElement = context.elementUtils.getTypeElement(type.canonicalName)
+        private fun addTypeToScopeIfNewDeclaredType(bodyType: WrappedBodyType, context: TargetContext) {
+            if (!bodyType.isPrimitiveOrStringType && bodyType.isInstantiable && bodyType.collectionType == CollectionType.None
+                    && !context.typesWithinScope.contains(bodyType.name) && !context.typesToBeAddedToScope.containsKey(bodyType.name)) {
+                val typeElement = context.elementUtils.getTypeElement(bodyType.canonicalName)
                 if (typeElement != null && typeElement.asType() is DeclaredType) {
-                    context.typesToBeAddedToScope[type.name!!] = typeElement
+                    context.typesToBeAddedToScope[bodyType.name!!] = typeElement
                 }
             }
 
         }
 
-        private fun resolveCollectionType(type: WrappedType, context: TargetContext) {
-            if (type.isPrimitiveOrStringType) return
+        private fun resolveCollectionType(bodyType: WrappedBodyType, context: TargetContext) {
+            if (bodyType.isPrimitiveOrStringType) return
 
             val simpleMapping = when {
-                type nameEquals Pair::class -> CollectionType.Pair
-                type nameEquals List::class -> CollectionType.Iterable
-                type nameEquals Set::class -> CollectionType.Set
-                type nameEquals Map::class -> CollectionType.Map
-                type nameEquals HashMap::class -> CollectionType.Map
+                bodyType nameEquals Pair::class -> CollectionType.Pair
+                bodyType nameEquals List::class -> CollectionType.Iterable
+                bodyType nameEquals Set::class -> CollectionType.Set
+                bodyType nameEquals Map::class -> CollectionType.Map
+                bodyType nameEquals HashMap::class -> CollectionType.Map
                 else -> null
             }
 
             if (simpleMapping != null) {
-                type.collectionType = simpleMapping
+                bodyType.collectionType = simpleMapping
                 return
             }
 
-            val typeMirror = getMirror(type, context) ?: return
+            val typeMirror = getMirror(bodyType, context) ?: return
             val kind = typeMirror.kind
             if (kind == TypeKind.ARRAY) {
-                type.collectionType = CollectionType.Array
+                bodyType.collectionType = CollectionType.Array
                 return
             }
             // add recursive check?
             loop@ for (superTypeName in getSuperTypeNames(typeMirror, context)) {
                 var exit = true
                 when {
-                    superTypeName nameEquals Map::class -> type.collectionType = CollectionType.Map
-                    superTypeName nameEquals Set::class -> type.collectionType = CollectionType.Set
-                    superTypeName nameEquals Collection::class -> type.collectionType = CollectionType.Iterable
+                    superTypeName nameEquals Map::class -> bodyType.collectionType = CollectionType.Map
+                    superTypeName nameEquals Set::class -> bodyType.collectionType = CollectionType.Set
+                    superTypeName nameEquals Collection::class -> bodyType.collectionType = CollectionType.Iterable
                     else -> exit = false
                 }
                 if (exit) break@loop
             }
         }
 
-        fun performActionsOnTypeAndItsNestedTypes(type: WrappedType, context: TargetContext, action: (foundType: WrappedType, context: TargetContext) -> Any) {
-            action(type, context)
-            if (type.hasParameters) {
-                type.parameters.values.forEach {
+        fun performActionsOnTypeAndItsNestedTypes(bodyType: WrappedBodyType, context: TargetContext, action: (foundBodyType: WrappedBodyType, context: TargetContext) -> Any) {
+            action(bodyType, context)
+            if (bodyType.hasParameters) {
+                bodyType.parameters.values.forEach {
                     performActionsOnTypeAndItsNestedTypes(it, context, action)
                 }
             }
         }
 
-        private fun getMirrorDefaultImpl(wrappedType: WrappedType, context: TargetContext, preferJavaTypeMirror: Boolean = true): TypeMirror? {
+        private fun getMirrorDefaultImpl(wrappedBodyType: WrappedBodyType, context: TargetContext, preferJavaTypeMirror: Boolean = true): TypeMirror? {
             var typeMirror : TypeMirror? = null
             if (preferJavaTypeMirror) {
-                if (wrappedType.variableElement != null) {
-                    typeMirror = wrappedType.variableElement.asType()
+                if (wrappedBodyType.variableElement != null) {
+                    typeMirror = wrappedBodyType.variableElement.asType()
                     return typeMirror
                 }
-                // try to resovle type from root.. we prefer java typess and the root type contains the information
-                if (typeMirror == null && wrappedType.javaCanonicalName != null) {
-                    val typeElement = context.elementUtils.getTypeElement(wrappedType.javaCanonicalName)
+                // try to resovle bodyType from root.. we prefer java typess and the root bodyType contains the information
+                if (typeMirror == null && wrappedBodyType.javaCanonicalName != null) {
+                    val typeElement = context.elementUtils.getTypeElement(wrappedBodyType.javaCanonicalName)
                     typeMirror = typeElement?.asType()
 
                 }
             }
-            if (typeMirror == null && wrappedType.canonicalName != null) {
-                val typeElement = context.elementUtils.getTypeElement(wrappedType.canonicalName)
+            if (typeMirror == null && wrappedBodyType.canonicalName != null) {
+                val typeElement = context.elementUtils.getTypeElement(wrappedBodyType.canonicalName)
                 typeMirror = typeElement?.asType()
             }
             return typeMirror
         }
 
-        private fun wrapPropertyType(typeName: TypeName, variableElement: VariableElement?): WrappedType {
-            val type = WrappedType.get(typeName, variableElement,true, false, false, false)
+        private fun wrapPropertyType(typeName: TypeName, variableElement: VariableElement?): WrappedBodyType {
+            val type = WrappedBodyType.get(typeName, variableElement,true, false, false, false)
             return type
         }
-        private fun wrapTypeVariable(typeName: TypeName): WrappedType {
-            val type =  WrappedType.get(typeName, null,false,true, false, false)
+        private fun wrapTypeVariable(typeName: TypeName): WrappedBodyType {
+            val type =  WrappedBodyType.get(typeName, null,false,true, false, false)
             return type
         }
-        private fun wrapEnumValueType(typeName: TypeName): WrappedType {
-            return WrappedType.get(typeName, null,false,false, true, false)
+        private fun wrapEnumValueType(typeName: TypeName): WrappedBodyType {
+            return WrappedBodyType.get(typeName, null,false,false, true, false)
         }
-        private fun wrapBoundType(typeName: TypeName): WrappedType {
-            return WrappedType.get(typeName, null,false,false, false, true)
+        private fun wrapBoundType(typeName: TypeName): WrappedBodyType {
+            return WrappedBodyType.get(typeName, null,false,false, false, true)
         }
     }
 }
 
 
-internal infix fun WrappedType.nameEquals(classType: KClass<*>): Boolean {
+internal infix fun WrappedBodyType.nameEquals(classType: KClass<*>): Boolean {
     return this.canonicalName != null &&
             (this.canonicalName == classType.qualifiedName || this.canonicalName == classType.java.canonicalName)
 }
-internal infix fun IWrappedType.nameEquals(classType: KClass<*>): Boolean {
+internal infix fun IWrappedBodyType.nameEquals(classType: KClass<*>): Boolean {
     return this.canonicalName != null &&
             (this.canonicalName == classType.qualifiedName || this.canonicalName == classType.java.canonicalName)
 }

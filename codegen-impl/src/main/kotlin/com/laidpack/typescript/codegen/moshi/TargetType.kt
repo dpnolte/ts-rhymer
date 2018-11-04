@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.laidpack.codegen.moshi
+package com.laidpack.typescript.codegen.moshi
 
-import com.laidpack.codegen.*
+import com.laidpack.typescript.codegen.*
 import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.KModifier
 import com.squareup.kotlinpoet.ParameterizedTypeName
@@ -28,6 +28,7 @@ import me.eugeniomarletti.kotlin.metadata.classKind
 import me.eugeniomarletti.kotlin.metadata.getPropertyOrNull
 import me.eugeniomarletti.kotlin.metadata.isInnerClass
 import me.eugeniomarletti.kotlin.metadata.kotlinMetadata
+import me.eugeniomarletti.kotlin.metadata.shadow.metadata.ProtoBuf
 import me.eugeniomarletti.kotlin.metadata.shadow.metadata.ProtoBuf.Class
 import me.eugeniomarletti.kotlin.metadata.shadow.metadata.ProtoBuf.TypeParameter
 import me.eugeniomarletti.kotlin.metadata.shadow.metadata.ProtoBuf.Visibility.LOCAL
@@ -42,22 +43,22 @@ import javax.lang.model.element.VariableElement
 import javax.tools.Diagnostic.Kind.ERROR
 import javax.tools.Diagnostic.Kind.WARNING
 
-/** A user type that should be decoded and encoded by generated code. */
+/** A user bodyType that should be decoded and encoded by generated code. */
 internal data class TargetType(
         val proto: Class,
         val element: TypeElement,
-        val name: ClassName,
-        val propertiesOrEnumValues: Map<String, TargetPropertyOrEnumValue>,
-        val typeVariables: Map<String, WrappedType>,
-        val superTypes: Set<AppliedType>,
+        override val name: ClassName,
+        override val propertiesOrEnumValues: Map<String, TargetPropertyOrEnumValue>,
+        override val typeVariables: Map<String, WrappedBodyType>,
+        override val superTypes: Set<AppliedType>,
         val isTypeScriptAnnotated: Boolean
-) {
+) : ITargetType {
 
-
+  override val isEnum = proto.classKind == ProtoBuf.Class.Kind.ENUM_CLASS
   companion object {
     private val OBJECT_CLASS = ClassName("java.lang", "Object")
 
-    /** Returns a target type for `element`, or null if it cannot be used with code gen. */
+    /** Returns a target bodyType for `element`, or null if it cannot be used with code gen. */
     fun get(element: Element, context: TargetContext): TargetType? {
       val typeMetadata: KotlinMetadata? = element.kotlinMetadata
       if (element !is TypeElement || typeMetadata !is KotlinClassMetadata) {
@@ -108,12 +109,12 @@ internal data class TargetType(
       val typeName = type.asTypeName()
 
       if (typeName nameEquals Pair::class) {
-        // don't add a target type for Pair<A,B> that needs to be defined, use Typescript's [A,B] notation
+        // don't add a target bodyType for Pair<A,B> that needs to be defined, use Typescript's [A,B] notation
         return null
       }
 
       val typeVariableNames = genericTypeNames(proto, typeMetadata.data.nameResolver)
-      val typeVariables = WrappedType.resolveGenericClassDeclaration(typeVariableNames, context)
+      val typeVariables = WrappedBodyType.resolveGenericClassDeclaration(typeVariableNames, context)
       val appliedType = AppliedType.get(element)
 
       val properties = declaredProperties(element, appliedType.resolver, typeVariables, context)
@@ -138,7 +139,7 @@ internal data class TargetType(
               }
               if (supertype.element.kotlinMetadata == null) {
                   context.messager.printMessage(ERROR,
-                          "@TypeScript can't be applied to ${appliedType.element.simpleName}: supertype $supertype is not a Kotlin type",
+                          "@TypeScript can't be applied to ${appliedType.element.simpleName}: supertype $supertype is not a Kotlin bodyType",
                           appliedType.element)
                   return null
               }
@@ -154,7 +155,7 @@ internal data class TargetType(
     private fun declaredProperties(
             typeElement: TypeElement,
             typeResolver: TypeResolver,
-            typeVariables: Map<String, WrappedType>,
+            bodyTypeVariables: Map<String, WrappedBodyType>,
             context: TargetContext
     ): Map<String, TargetProperty> {
       val typeMetadata: KotlinClassMetadata = typeElement.kotlinMetadata as KotlinClassMetadata
@@ -199,7 +200,7 @@ internal data class TargetType(
                 nameResolver, classProto::getTypeParameter, false
         ))
 
-        val wrappedType = WrappedType.resolvePropertyType(typeName, fields[name], typeVariables, context)
+        val wrappedType = WrappedBodyType.resolvePropertyType(typeName, fields[name], bodyTypeVariables, context)
         result[name] = TargetProperty(
                 name, wrappedType, property,
                 annotationHolders[name], fields[name], setters[name], getters[name]
@@ -228,7 +229,7 @@ internal data class TargetType(
       var ordinal = 0
       for (enumEntry in classProto.enumEntryList) {
         val name = nameResolver.getString(enumEntry.name)
-          val wrappedType = WrappedType.resolveEnumValueType(typeElement.asType().asTypeName())
+          val wrappedType = WrappedBodyType.resolveEnumValueType(typeElement.asType().asTypeName())
         result[name] = TargetEnumValue(
                 name,
                 wrappedType, // enum value returns enum class (e.g., TestEnum.One returns --> TestEnum with value 1 in class enum TestEnum (val value; Int) { One(1), Two(2) }

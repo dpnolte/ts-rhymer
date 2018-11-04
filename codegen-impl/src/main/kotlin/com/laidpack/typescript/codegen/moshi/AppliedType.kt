@@ -13,25 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.laidpack.codegen.moshi
+package com.laidpack.typescript.codegen.moshi
 
-import com.squareup.kotlinpoet.TypeName
-import com.squareup.kotlinpoet.TypeVariableName
-import com.squareup.kotlinpoet.asTypeName
+import com.squareup.kotlinpoet.*
 import javax.lang.model.element.TypeElement
 import javax.lang.model.type.DeclaredType
 import javax.lang.model.util.Types
 
 /**
- * A concrete type like `List<String>` with enough information to know how to resolve its type
+ * A concrete bodyType like `List<String>` with enough information to know how to resolve its bodyType
  * variables.
  */
 class AppliedType private constructor(
   val element: TypeElement,
   val resolver: TypeResolver,
+  val className: ClassName,
   private val mirror: DeclaredType
 ) {
-  /** Returns all supertypes of this (no longer recursive). Includes both interface and class supertypes. */
+  /** Returns super type. Includes both interface and class supertypes. */
   fun supertypes(
     types: Types,
     result: MutableSet<AppliedType> = mutableSetOf()
@@ -40,22 +39,26 @@ class AppliedType private constructor(
     for (supertype in types.directSupertypes(mirror)) {
       val supertypeDeclaredType = supertype as DeclaredType
       val supertypeElement = supertypeDeclaredType.asElement() as TypeElement
-      val appliedSupertype = AppliedType(supertypeElement,
-          resolver(supertypeElement, supertypeDeclaredType), supertypeDeclaredType)
+      val appliedSupertype = AppliedType(
+              supertypeElement,
+              resolver(supertypeElement, supertypeDeclaredType),
+              supertypeElement.asClassName(),
+              supertypeDeclaredType
+      )
       result.add(appliedSupertype)
       //appliedSupertype.supertypes(types, result)
     }
     return result
   }
 
-  /** Returns a resolver that uses `element` and `mirror` to resolve type parameters. */
+  /** Returns a resolver that uses `element` and `mirror` to resolve bodyType parameters. */
   private fun resolver(element: TypeElement, mirror: DeclaredType): TypeResolver {
     return object : TypeResolver() {
       override fun resolveTypeVariable(typeVariable: TypeVariableName): TypeName {
         val index = element.typeParameters.indexOfFirst {
           it.simpleName.toString() == typeVariable.name
         }
-        check(index != -1) { "Unexpected type variable $typeVariable in $mirror" }
+        check(index != -1) { "Unexpected bodyType variable $typeVariable in $mirror" }
         val argument = mirror.typeArguments[index]
         return argument.asTypeName()
       }
@@ -66,7 +69,7 @@ class AppliedType private constructor(
 
   companion object {
     fun get(typeElement: TypeElement): AppliedType {
-      return AppliedType(typeElement, TypeResolver(), typeElement.asType() as DeclaredType)
+      return AppliedType(typeElement, TypeResolver(), typeElement.asClassName(), typeElement.asType() as DeclaredType)
     }
   }
 }

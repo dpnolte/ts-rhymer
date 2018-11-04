@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.laidpack.codegen.moshi
+package com.laidpack.typescript.codegen.moshi
 
 import com.squareup.kotlinpoet.ANY
 import com.squareup.kotlinpoet.ClassName
@@ -56,11 +56,11 @@ internal fun TypeParameter.Variance.asKModifier(): KModifier? {
 }
 
 /**
- * Returns the TypeName of this type as it would be seen in the source code, including nullability
- * and generic type parameters.
+ * Returns the TypeName of this bodyType as it would be seen in the source code, including nullability
+ * and generic bodyType parameters.
  *
  * @param [nameResolver] a [NameResolver] instance from the source proto
- * @param [getTypeParameter] a function that returns the type parameter for the given index. **Only
+ * @param [getTypeParameter] a function that returns the bodyType parameter for the given index. **Only
  *     called if [ProtoBuf.Type.hasTypeParameter] is true!**
  */
 internal fun Type.asTypeName(

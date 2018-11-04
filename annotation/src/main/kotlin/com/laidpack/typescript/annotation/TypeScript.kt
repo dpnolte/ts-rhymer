@@ -1,4 +1,4 @@
-package com.laidpack.annotation
+package com.laidpack.typescript.annotation
 
 @Retention(AnnotationRetention.SOURCE)
 annotation class TypeScript
