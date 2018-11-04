@@ -1,8 +1,9 @@
 package com.laidpack.typescript.codegen
 
-import com.laidpack.annotation.TypeScript
+import com.laidpack.typescript.annotation.TypeScript
 import com.laidpack.typescript.codegen.moshi.ITargetType
 import com.squareup.kotlinpoet.ClassName
+import com.squareup.kotlinpoet.asTypeName
 import me.eugeniomarletti.kotlin.metadata.*
 import me.eugeniomarletti.kotlin.processing.KotlinAbstractProcessor
 import java.io.File

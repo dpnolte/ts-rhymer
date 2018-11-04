@@ -79,19 +79,35 @@ internal class TypeScriptTypeTransformerTest {
     }
 
     @Test
-    fun `transformType - given int annotated with Test, return custom value transformed any`() {
+    fun `transformType - given int annotated with Test, return custom value transformed string`() {
         // Assemble
         Mockito.`when`(mockedBodyType.canonicalName).`it returns`(Int::class.java.canonicalName)
         Mockito.`when`(mockedBodyType.isPrimitiveOrStringType).`it returns`(true)
         Mockito.`when`(mockedBodyType.annotationNames).`it returns`(setOf("Test"))
 
         // Act
-        val customValueTransformer = TypeTransformer({ t -> t.annotationNames.contains("Test")}, "string")
+        val customValueTransformer = TypeTransformer({ t -> t.annotationNames.contains("Test")}, "string", Nullability.NoTransform)
         val transformer = TypeScriptTypeTransformer(listOf(customValueTransformer))
         val result = transformer.transformType(mockedBodyType, setOf(), mapOf())
 
         // Assert
         result shouldEqual "string"
+    }
+
+    @Test
+    fun `transformType - given non-nullable int annotated with Test, return transformed nullability as null`() {
+        // Assemble
+        Mockito.`when`(mockedBodyType.canonicalName).`it returns`(Int::class.java.canonicalName)
+        Mockito.`when`(mockedBodyType.isPrimitiveOrStringType).`it returns`(true)
+        Mockito.`when`(mockedBodyType.annotationNames).`it returns`(setOf("Test"))
+
+        // Act
+        val customValueTransformer = TypeTransformer({ t -> t.annotationNames.contains("Test")}, "string", Nullability.Null)
+        val transformer = TypeScriptTypeTransformer(listOf(customValueTransformer))
+        val result = transformer.isNullable(mockedBodyType)
+
+        // Assert
+        result shouldEqual true
     }
 
 }
