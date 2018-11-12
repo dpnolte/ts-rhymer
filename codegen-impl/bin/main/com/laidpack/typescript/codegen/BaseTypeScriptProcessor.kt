@@ -24,59 +24,34 @@ typealias FileProcessor = (
         rootPackageNames: Set<String>,
         packageNames: Set<String>
 ) -> String?
-typealias SuperTypeTransformer = (superClassName: ClassName, currentModuleName: String) -> String
-typealias DefinitionTypeTransformer = (className: ClassName) -> String
-
-abstract class BaseTypeScriptProcessor : KotlinAbstractProcessor(), KotlinMetadataUtils {
+typealias SuperTypeProcessor = (superClassName: ClassName, currentModuleName: String) -> String
+abstract class BaseTypeScriptProcessor(
+        private val customTransformers: List<TypeTransformer> = listOf(),
+        private val constrainToCurrentModulePackage: Boolean = false,
+        private val filePreProcessors: List<FileProcessor> = listOf(),
+        private val filePostProcessors: List<FileProcessor> = listOf(),
+        private val definitionPreProcessors: List<DefinitionProcessor> = listOf(),
+        private val definitionPostProcessors: List<DefinitionProcessor> = listOf(),
+        private val superTypeTransformer: SuperTypeProcessor = {c, _ -> c.simpleName}
+) : KotlinAbstractProcessor(), KotlinMetadataUtils {
     private val annotation = TypeScript::class.java
     private var moduleName: String = "NativeTypes"
-    private var namespace: String? = null
     private var indent: String = "  "
     private var customOutputDir: String? = null
     private var fileName = "types.d.ts"
-    private lateinit var moduleOption: ModuleOption
-    private lateinit var name: String
-    protected open val customTransformers: List<TypeTransformer> = listOf()
-    protected open val filePreProcessors: List<FileProcessor> = listOf()
-    protected open val filePostProcessors: List<FileProcessor> = listOf()
-    protected open val definitionPreProcessors: List<DefinitionProcessor> = listOf()
-    protected open val definitionPostProcessors: List<DefinitionProcessor> = listOf()
-    protected open val definitionTypeTransformer: DefinitionTypeTransformer = { c -> c.simpleName}
-    protected open val superTypeTransformer: SuperTypeTransformer = { c, _ -> c.simpleName}
-    protected open val constrainToCurrentModulePackage: Boolean = false
-    protected open val exportDefinitions: Boolean = false
-    protected open val inAmbientDefinitionFile: Boolean = true
-
 
     override fun getSupportedAnnotationTypes() = setOf(annotation.canonicalName)
 
     override fun getSupportedSourceVersion(): SourceVersion = SourceVersion.latest()
 
-    override fun getSupportedOptions() = setOf(
-            OPTION_MODULE, OPTION_NAMESPACE, OPTION_OUTPUTDIR, OPTION_INDENT, OPTION_FILENAME, kaptGeneratedOption
-    )
+    override fun getSupportedOptions() = setOf(OPTION_MODULE, OPTION_OUTPUTDIR, OPTION_INDENT, OPTION_FILENAME, kaptGeneratedOption)
 
     override fun init(processingEnv: ProcessingEnvironment) {
         super.init(processingEnv)
         moduleName = processingEnv.options[OPTION_MODULE] ?: moduleName
-        namespace = processingEnv.options[OPTION_NAMESPACE]
         indent = processingEnv.options[OPTION_INDENT] ?: indent
         customOutputDir = processingEnv.options[OPTION_OUTPUTDIR]
         fileName = processingEnv.options[OPTION_FILENAME] ?: fileName
-        when {
-            processingEnv.options[OPTION_MODULE] != null -> {
-                moduleOption = ModuleOption.Namespace
-                name = moduleName
-            }
-            processingEnv.options[OPTION_NAMESPACE] != null -> {
-                moduleOption = ModuleOption.Namespace
-                name = namespace as String
-            }
-            else -> {
-                ModuleOption.None
-                name = ""
-            }
-        }
     }
 
     override fun process(annotations: Set<TypeElement>, roundEnv: RoundEnvironment): Boolean {
@@ -99,8 +74,7 @@ abstract class BaseTypeScriptProcessor : KotlinAbstractProcessor(), KotlinMetada
 
         if (targetedTypes.isNotEmpty()) {
             val content = TypeScriptGenerator.generate(
-                    name,
-                    moduleOption,
+                    moduleName,
                     targetedTypes,
                     indent,
                     customTransformers,
@@ -111,10 +85,7 @@ abstract class BaseTypeScriptProcessor : KotlinAbstractProcessor(), KotlinMetada
                     filePostProcessors,
                     definitionPreProcessors,
                     definitionPostProcessors,
-                    definitionTypeTransformer,
-                    superTypeTransformer,
-                    exportDefinitions,
-                    inAmbientDefinitionFile
+                    superTypeTransformer
             )
             var outputDir : String = customOutputDir ?: options[kaptGeneratedOption] ?: System.getProperty("user.dir")
             if (!outputDir.endsWith(File.separator))
@@ -126,18 +97,14 @@ abstract class BaseTypeScriptProcessor : KotlinAbstractProcessor(), KotlinMetada
                 return false
             }
 
-            writeFile(outputDir, fileName, content)
+            val file = File(outputDir, fileName)
+            file.createNewFile() // overwrite any existing file
+            file.writeText(content)
+
+            messager.printMessage(Diagnostic.Kind.OTHER, "TypeScript definitions saved at $outputDir$fileName")
         }
 
         return true
-    }
-
-    open fun writeFile(outputDir: String, fileName: String, content: String) {
-        val file = File(outputDir, fileName)
-        file.createNewFile() // overwrite any existing file
-        file.writeText(content)
-
-        messager.printMessage(Diagnostic.Kind.OTHER, "TypeScript definitions saved at $file")
     }
 
     private fun createContext(): TargetContext {
@@ -153,7 +120,6 @@ abstract class BaseTypeScriptProcessor : KotlinAbstractProcessor(), KotlinMetada
     }
     companion object {
         const val OPTION_MODULE = "typescript.module"
-        const val OPTION_NAMESPACE= "typescript.namespace"
         const val OPTION_OUTPUTDIR = "typescript.outputDir"
         const val OPTION_INDENT = "typescript.indent"
         const val OPTION_FILENAME = "typescript.filename"

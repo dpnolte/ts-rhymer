@@ -26,7 +26,7 @@ internal class WrappedBodyType private constructor (
         override val isEnumValue: Boolean,
         override val isBound: Boolean,
         override val parameters: Map<String, WrappedBodyType>,
-        override val annotations: Map<String, Map<String, String>>,
+        override val annotationNames: Set<String>,
         private val _bounds: Map<String, WrappedBodyType>
 ) : IWrappedBodyType {
     override val hasRawType = typeName is ClassName || typeName is ParameterizedTypeName
@@ -170,7 +170,7 @@ internal class WrappedBodyType private constructor (
                     isEnumValue,
                     isBound,
                     getParameterTypes(typeName),
-                    getAnnotations(variableElement),
+                    getAnnotationNames(variableElement),
                     getBounds(isTypeVariable, typeName)
             )
             injectJavaMirroredCanonicalName(wrappedType)
@@ -190,28 +190,16 @@ internal class WrappedBodyType private constructor (
             return parameters
         }
 
-        private fun getAnnotations(variableElement: VariableElement?): Map<String, Map<String, String>> {
-            val annotations = mutableMapOf<String, Map<String, String>>()
+        private fun getAnnotationNames(variableElement: VariableElement?): Set<String> {
+            val annotationNames = mutableSetOf<String>()
             if (variableElement != null) {
-                for (annotationMirror in variableElement.annotationMirrors) {
-                    val annotationMembers = mutableMapOf<String, String>()
-                    for (elementValue in annotationMirror.elementValues) {
-                        val value = elementValue.value
-                        val memberValue = when (value) {
-                            is DeclaredType -> {
-                                val typeName = value.asTypeName()
-                                if (typeName is ClassName) {
-                                    typeName.canonicalName
-                                } else typeName.toString()
-                            }
-                            else -> value.toString()
+                annotationNames.addAll(
+                        variableElement.annotationMirrors.map { annotationMirror ->
+                            annotationMirror.annotationType.asTypeName().toString()
                         }
-                        annotationMembers[elementValue.key.simpleName.toString()] = memberValue
-                    }
-                    annotations[annotationMirror.annotationType.asTypeName().toString()] = annotationMembers
-                }
+                )
             }
-            return annotations
+            return annotationNames
         }
 
         private fun getBounds(isTypeVariable: Boolean, typeName: TypeName): Map<String, WrappedBodyType> {
@@ -251,15 +239,11 @@ internal class WrappedBodyType private constructor (
         }
 
         private fun addTypeToScopeIfNewDeclaredType(bodyType: WrappedBodyType, context: TargetContext) {
-            val canonicalName = bodyType.canonicalName
-            if (canonicalName != null
-                    && !bodyType.isPrimitiveOrStringType
-                    && bodyType.isInstantiable && bodyType.collectionType == CollectionType.None
-                    && !context.typesWithinScope.contains(canonicalName)
-                    && !context.typesToBeAddedToScope.containsKey(canonicalName)) {
-                val typeElement = context.elementUtils.getTypeElement(canonicalName)
+            if (!bodyType.isPrimitiveOrStringType && bodyType.isInstantiable && bodyType.collectionType == CollectionType.None
+                    && !context.typesWithinScope.contains(bodyType.name) && !context.typesToBeAddedToScope.containsKey(bodyType.name)) {
+                val typeElement = context.elementUtils.getTypeElement(bodyType.canonicalName)
                 if (typeElement != null && typeElement.asType() is DeclaredType) {
-                    context.typesToBeAddedToScope[canonicalName] = typeElement
+                    context.typesToBeAddedToScope[bodyType.name!!] = typeElement
                 }
             }
 

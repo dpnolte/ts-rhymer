@@ -83,10 +83,10 @@ internal class TypeScriptTypeTransformerTest {
         // Assemble
         Mockito.`when`(mockedBodyType.canonicalName).`it returns`(Int::class.java.canonicalName)
         Mockito.`when`(mockedBodyType.isPrimitiveOrStringType).`it returns`(true)
-        Mockito.`when`(mockedBodyType.annotations).`it returns`(mapOf("Test" to mapOf()))
+        Mockito.`when`(mockedBodyType.annotationNames).`it returns`(setOf("Test"))
 
         // Act
-        val customValueTransformer = TypeTransformer({ t -> t.annotations.contains("Test")}, "string", Nullability.NoTransform)
+        val customValueTransformer = TypeTransformer({ t -> t.annotationNames.contains("Test")}, "string", Nullability.NoTransform)
         val transformer = TypeScriptTypeTransformer(listOf(customValueTransformer))
         val result = transformer.transformType(mockedBodyType, setOf(), mapOf())
 
@@ -99,10 +99,10 @@ internal class TypeScriptTypeTransformerTest {
         // Assemble
         Mockito.`when`(mockedBodyType.canonicalName).`it returns`(Int::class.java.canonicalName)
         Mockito.`when`(mockedBodyType.isPrimitiveOrStringType).`it returns`(true)
-        Mockito.`when`(mockedBodyType.annotations).`it returns`(mapOf("Test" to mapOf()))
+        Mockito.`when`(mockedBodyType.annotationNames).`it returns`(setOf("Test"))
 
         // Act
-        val customValueTransformer = TypeTransformer({ t -> t.annotations.contains("Test")}, "string", Nullability.Null)
+        val customValueTransformer = TypeTransformer({ t -> t.annotationNames.contains("Test")}, "string", Nullability.Null)
         val transformer = TypeScriptTypeTransformer(listOf(customValueTransformer))
         val result = transformer.isNullable(mockedBodyType)
 

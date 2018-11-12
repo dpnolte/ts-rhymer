@@ -7,15 +7,9 @@ enum class Nullability {
 }
 class TypeTransformer (
         val predicate: (bodyType: IWrappedBodyType) -> Boolean,
-        val typeProvider: (bodyType: IWrappedBodyType) -> String,
+        val type: String,
         val nullable: Nullability
-) {
-    constructor(
-            predicate: (bodyType: IWrappedBodyType) -> Boolean,
-            type: String,
-            nullable: Nullability
-    ) : this(predicate, {type}, nullable)
-}
+)
 
 internal class TypeScriptTypeTransformer(
         private val customTransformers: List<TypeTransformer> = listOf()
@@ -35,19 +29,16 @@ internal class TypeScriptTypeTransformer(
     fun transformType(bodyType: IWrappedBodyType, typesWithinScope: Set<String>, bodyTypeVariables: Map<String, IWrappedBodyType>): String {
         val customTransformer = customTransformers.find { t -> t.predicate(bodyType) }
         return when {
-            customTransformer != null -> customTransformer.typeProvider(bodyType)
+            customTransformer != null -> customTransformer.type
             bodyType.isWildCard -> "any"
             bodyType.name != null && typesWithinScope.contains(bodyType.name as String) -> "${bodyType.name}${transformTypeParameters(bodyType, typesWithinScope, bodyTypeVariables)}"
             bodyType.isReturningTypeVariable -> "${bodyType.name}"
             bodyType.isTypeVariable && bodyTypeVariables.containsKey(bodyType.name) -> "${bodyType.name}${transformTypeParameters(bodyType, typesWithinScope, bodyTypeVariables)}"
             else -> {
                 val transformer = if (!bodyType.hasParameters) valueTransformers.find { t -> t.predicate(bodyType) } else null
-                if (transformer != null) {
-                    transformer.typeProvider(bodyType)
-                } else {
-                    transformCollectionType(bodyType, typesWithinScope, bodyTypeVariables)
-                            ?: "any /* unknown bodyType */"
-                }
+                transformer?.type
+                        ?: transformCollectionType(bodyType, typesWithinScope, bodyTypeVariables)
+                        ?: "any /* unknown bodyType */"
             }
         }
     }

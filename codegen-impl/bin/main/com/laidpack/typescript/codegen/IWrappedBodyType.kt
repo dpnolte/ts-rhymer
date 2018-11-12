@@ -12,7 +12,7 @@ interface IWrappedBodyType {
     val isEnumValue: Boolean
     val isBound: Boolean
     val parameters: Map<String, IWrappedBodyType>
-    val annotations: Map<String, Map<String, String>>
+    val annotationNames: Set<String>
     val hasRawType: Boolean
     val isInstantiable: Boolean
     val nullable: Boolean

@@ -69,18 +69,13 @@ internal data class TargetType(
 
       val proto = typeMetadata.data.classProto
       if (proto.classKind == Class.Kind.ENUM_CLASS) {
-        return getEnumTargetType(element, proto, typeMetadata, context.targetingTypscriptAnnotatedType)
+        return getEnumTargetType(element, proto, typeMetadata, context)
       }
 
       return getDeclaredTargetType(element, proto, typeMetadata, context)
     }
 
-    private fun getEnumTargetType(
-            element: TypeElement,
-            proto: Class,
-            typeMetadata: KotlinClassMetadata,
-            targetingTypscriptAnnotatedType: Boolean
-    ): TargetType {
+    private fun getEnumTargetType(element: TypeElement, proto: Class, typeMetadata: KotlinClassMetadata, context: TargetContext): TargetType? {
 
       val enumValues = declaredEnumValues(element, proto, typeMetadata)
 
@@ -91,7 +86,7 @@ internal data class TargetType(
         else -> throw IllegalStateException("unexpected TypeName: ${typeName::class}")
       }
 
-      return TargetType(proto, element, name, enumValues, mapOf(), setOf(), targetingTypscriptAnnotatedType)
+      return TargetType(proto, element, name, enumValues, mapOf(), setOf(), context.targetingTypscriptAnnotatedType)
     }
 
     private fun getDeclaredTargetType(element: TypeElement, proto: Class, typeMetadata: KotlinClassMetadata, context: TargetContext): TargetType? {
@@ -144,14 +139,13 @@ internal data class TargetType(
               }
               if (supertype.element.kotlinMetadata == null) {
                   context.messager.printMessage(ERROR,
-                          "@TypeScript can't be applied to ${appliedType.element.simpleName}: supertype $supertype is not a Kotlin type",
+                          "@TypeScript can't be applied to ${appliedType.element.simpleName}: supertype $supertype is not a Kotlin bodyType",
                           appliedType.element)
                   return null
               }
-              val superClassName = supertype.element.asClassName()
-              if (superClassName != appliedType.element.asClassName()) {
+              if (supertype.element.asClassName() != appliedType.element.asClassName()) {
                   selectedSuperTypes.add(supertype)
-                  context.typesToBeAddedToScope[superClassName.canonicalName] = supertype.element
+                  context.typesToBeAddedToScope[supertype.element.simpleName.toString()] = supertype.element
               }
           }
           return selectedSuperTypes

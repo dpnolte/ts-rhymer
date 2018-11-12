@@ -2,25 +2,19 @@ package com.laidpack.typescript.codegen
 
 
 import com.laidpack.typescript.codegen.moshi.ITargetType
+import com.squareup.kotlinpoet.ClassName
 import java.time.LocalDateTime
 import java.util.*
 
 
 /** Generates a JSON adapter for a target bodyType. */
-internal enum class ModuleOption {
-    Module,
-    Namespace,
-    None
-}
 
 internal class TypeScriptGenerator private constructor (
         target: ITargetType,
         private val typesWithinScope: Set<String>,
         customTransformers: List<TypeTransformer> = listOf(),
         private val currentModuleName: String,
-        private val definitionTypeTransformer: DefinitionTypeTransformer,
-        private val superTypeTransformer: SuperTypeTransformer,
-        exportDefinitions: Boolean
+        private val superTypeTransformer: SuperTypeProcessor
     ) {
     private val className = target.name
     private val typeVariables = target.typeVariables
@@ -29,41 +23,36 @@ internal class TypeScriptGenerator private constructor (
     val output by lazy {generateDefinition()}
     private val propertiesOrEnumValues = target.propertiesOrEnumValues.values
     private val transformer = TypeScriptTypeTransformer(customTransformers)
-    private val export = if (exportDefinitions) "export " else ""
 
     override fun toString(): String {
         return output
     }
 
-
-    private fun generateDefinition(): String {
-        return if (isEnum) {
-            generateEnum()
-        } else {
-            generateInterface()
-        }
-    }
-
     private fun generateInterface(): String {
         val extendsString = generateExtends()
         val templateParameters = generateTypeVariables()
-        val interfaceName = definitionTypeTransformer(className)
+
         val properties= generateProperties()
-        return "$indent${export}interface $interfaceName$templateParameters$extendsString {\n" +
+        return "${indent}interface ${className.simpleName}$templateParameters$extendsString {\n" +
                     properties +
                 "$indent}\n"
     }
 
-    private fun generateEnum(): String {
-        val enumValues= propertiesOrEnumValues
-                .sortedBy { it.jsonName() }
-                .joinToString(",\n") { enumValue ->
-                    "${indent+indent}${enumValue.jsonName()} = '${enumValue.jsonName()}'"
+    private fun generateProperties(): String {
+        return propertiesOrEnumValues
+                .joinToString ("") { property ->
+                    val propertyName = property.jsonName()
+                    val propertyType = transformer.transformType(property.bodyType, typesWithinScope, typeVariables)
+                    val isNullable = if (transformer.isNullable(property.bodyType)) "?" else ""
+                    "$indent$indent$propertyName$isNullable: $propertyType;\n"
                 }
-        val enumName = definitionTypeTransformer(className)
-        return "$indent${export}enum $enumName {\n" +
-            "$enumValues\n" +
-            "$indent}\n"
+    }
+
+    private fun generateEnum(): String {
+        val enumValues= propertiesOrEnumValues.joinToString(", ") { enumValue ->
+            "'${enumValue.jsonName()}'"
+        }
+        return "${indent}enum ${className.simpleName} { $enumValues }\n"
     }
 
     private fun generateExtends(): String {
@@ -93,21 +82,19 @@ internal class TypeScriptGenerator private constructor (
         return ""
     }
 
-    private fun generateProperties(): String {
-        return propertiesOrEnumValues
-                .joinToString ("") { property ->
-                    val propertyName = property.jsonName()
-                    val propertyType = transformer.transformType(property.bodyType, typesWithinScope, typeVariables)
-                    val isNullable = if (transformer.isNullable(property.bodyType)) "?" else ""
-                    "$indent$indent$propertyName$isNullable: $propertyType;\n"
-                }
+
+    private fun generateDefinition(): String {
+        return if (isEnum) {
+            generateEnum()
+        } else {
+            generateInterface()
+        }
     }
 
     companion object {
         private var indent = "  "
         fun generate(
                 moduleName: String,
-                moduleOption: ModuleOption,
                 targetTypes: HashMap<String, ITargetType>,
                 indent: String,
                 customTransformers: List<TypeTransformer>,
@@ -118,10 +105,7 @@ internal class TypeScriptGenerator private constructor (
                 filePostProcessors: List<FileProcessor>,
                 definitionPreProcessors: List<DefinitionProcessor>,
                 definitionPostProcessors: List<DefinitionProcessor>,
-                definitionTypeTransformer: DefinitionTypeTransformer,
-                superTypeTransformer: SuperTypeTransformer,
-                exportDefinitions: Boolean,
-                inAmbientDefinitionFile: Boolean
+                superTypeTransformer: SuperTypeProcessor
         ): String {
             this.indent = indent
             val targetTypeNames = targetTypes.keys
@@ -134,9 +118,7 @@ internal class TypeScriptGenerator private constructor (
                             targetTypeNames,
                             customTransformers,
                             moduleName,
-                            definitionTypeTransformer,
-                            superTypeTransformer,
-                            exportDefinitions
+                            superTypeTransformer
                     )
                     addAnyProcessedDefinitions(targetType, definitionPreProcessors, definitions)
                     definitions.add(generatedTypeScript.output)
@@ -145,17 +127,9 @@ internal class TypeScriptGenerator private constructor (
             }
             val timestamp = "/* generated @ ${LocalDateTime.now()} */\n"
             val customBeginStatements = getAnyProcessedFileStatements(targetTypes, rootPackageNames, packageNames, filePreProcessors)
-            val declare = if (inAmbientDefinitionFile) {
-                "declare "
-            } else ""
-            val export = if (exportDefinitions) "export " else ""
-            val moduleStart = when(moduleOption) {
-                ModuleOption.Module -> "$export${declare}module \"$moduleName\" {\n"
-                ModuleOption.Namespace -> "$export${declare}namespace $moduleName {\n"
-                else -> ""
-            }
-            val moduleContent = definitions.joinToString("")
-            val moduleEnd = if (moduleOption == ModuleOption.None) "" else "}\n"
+            val moduleStart = "declare module \"$moduleName\" {\n"
+            val moduleContent = definitions.joinToString("\n")
+            val moduleEnd = "}\n"
             val customEndStatements = getAnyProcessedFileStatements(targetTypes, rootPackageNames, packageNames, filePostProcessors)
 
             return "$timestamp$customBeginStatements$moduleStart$moduleContent$moduleEnd$customEndStatements"
@@ -168,7 +142,7 @@ internal class TypeScriptGenerator private constructor (
         ): Boolean {
             return !constrainToCurrentModulePackage
                     || rootPackageNames.contains(targetType.name.packageName)
-                    || rootPackageNames.any { targetType.name.packageName.startsWith("$it.") }
+                    || rootPackageNames.any { targetType.name.packageName.startsWith(it) }
         }
         private fun addAnyProcessedDefinitions(
                 targetType: ITargetType,

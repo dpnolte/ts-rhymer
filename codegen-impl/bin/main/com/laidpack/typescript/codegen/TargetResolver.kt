@@ -1,8 +1,6 @@
 package com.laidpack.typescript.codegen
 
 import com.laidpack.typescript.codegen.moshi.TargetType
-import com.squareup.kotlinpoet.ClassName
-import com.squareup.kotlinpoet.asTypeName
 import javax.lang.model.element.Element
 import javax.tools.Diagnostic
 
@@ -22,7 +20,6 @@ internal object TargetResolver {
          // 2. super classes --> see TargetType.resolveSuperTypes
          // 3. bounds in bodyType variables - e.g., bodyType Y in class X <T : Y> { val test = T } --> see WrappedBodyType.resolveGenericClassDeclaration
          // TODO: don't capture target types in the context instance (see typesToBeAddedToScope)
-         // TODO: normalize types and clean up ;-)
         **/
         context.targetingTypscriptAnnotatedType = false
         context.abortOnError = false
@@ -47,8 +44,8 @@ internal object TargetResolver {
 
         val type = TargetType.get(element, context)
         if (type != null) {
-            context.typesWithinScope.add(type.name.canonicalName)
-            if (context.targetingTypscriptAnnotatedType) context.typesWithTypeScriptAnnotation.add(type.name.canonicalName)
+            context.typesWithinScope.add(type.name.simpleName)
+            if (context.targetingTypscriptAnnotatedType) context.typesWithTypeScriptAnnotation.add(type.name.simpleName)
         }
 
         return type
@@ -56,14 +53,15 @@ internal object TargetResolver {
 
 
     private fun isDuplicateType(element: Element, context: TargetContext): Boolean {
-        val typeName = element.asType().asTypeName()
-        if (typeName is ClassName && context.typesWithinScope.contains(typeName.canonicalName)) {
+        val name = element.simpleName.toString()
+        if (context.typesWithinScope.contains(name)) {
             // error on duplicated annotated types
-            if (context.typesWithTypeScriptAnnotation.contains(typeName.canonicalName) && context.targetingTypscriptAnnotatedType) {
-                context.messager.printMessage(Diagnostic.Kind.ERROR, "Multiple types with a duplicate name: '${typeName.canonicalName}'. Please rename or remove the @TypeScript annotation?")
+            if (context.typesWithTypeScriptAnnotation.contains(name) && context.targetingTypscriptAnnotatedType) {
+                context.messager.printMessage(Diagnostic.Kind.ERROR, "Multiple types with a duplicate name: '${element.simpleName}'. Please rename or remove the @TypeScript annotation?")
             }
             return true// ignore duplicate base types
         }
+
         return false
     }
 
