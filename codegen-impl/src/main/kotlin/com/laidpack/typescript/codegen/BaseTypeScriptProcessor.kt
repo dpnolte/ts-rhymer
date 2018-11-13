@@ -46,6 +46,7 @@ abstract class BaseTypeScriptProcessor : KotlinAbstractProcessor(), KotlinMetada
     protected open val constrainToCurrentModulePackage: Boolean = false
     protected open val exportDefinitions: Boolean = false
     protected open val inAmbientDefinitionFile: Boolean = true
+    protected var importWithinModule = false
 
 
     override fun getSupportedAnnotationTypes() = setOf(annotation.canonicalName)
@@ -63,6 +64,7 @@ abstract class BaseTypeScriptProcessor : KotlinAbstractProcessor(), KotlinMetada
         indent = processingEnv.options[OPTION_INDENT] ?: indent
         customOutputDir = processingEnv.options[OPTION_OUTPUTDIR]
         fileName = processingEnv.options[OPTION_FILENAME] ?: fileName
+        importWithinModule = processingEnv.options[OPTION_IMPORT_WITHIN_MODULE]?.toBoolean() ?: false
         when {
             processingEnv.options[OPTION_MODULE] != null -> {
                 moduleOption = ModuleOption.Namespace
@@ -157,6 +159,7 @@ abstract class BaseTypeScriptProcessor : KotlinAbstractProcessor(), KotlinMetada
         const val OPTION_OUTPUTDIR = "typescript.outputDir"
         const val OPTION_INDENT = "typescript.indent"
         const val OPTION_FILENAME = "typescript.filename"
+        const val OPTION_IMPORT_WITHIN_MODULE = "typescript.import_within_module"
     }
 }
 
