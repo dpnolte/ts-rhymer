@@ -88,7 +88,7 @@ declare module "NativeTypes" {
     visibility: Visibility;
   }
 
-  enum Visibility { 'VISIBLE', 'INVISIBLE', 'GONE' }
+  enum Visibility { GONE='GONE', INVISIBLE='INVISIBLE', VISIBLE='VISIBLE' }
 }
 ```
 
@@ -194,4 +194,4 @@ declare module "NativeTypes" {
 Note that wild card will be converted to any
 
 ### Motivation
-Android is more constrained as a platform. The annotation processor creates the typescript defintions at compile so that no overhead is added. The already existing generators were using reflection, which - on android- is a performance and a dex count hit. 
+Easy to use typescript generator by selecting classes with annotations 

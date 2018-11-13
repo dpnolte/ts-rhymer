@@ -1,2 +1,2 @@
-include ':annotation', ':codegen'
+include ':api', ':codegen'
 include ':codegen-impl'
