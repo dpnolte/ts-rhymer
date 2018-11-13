@@ -20,7 +20,8 @@ internal class TypeScriptGenerator private constructor (
         private val currentModuleName: String,
         private val definitionTypeTransformer: DefinitionTypeTransformer,
         private val superTypeTransformer: SuperTypeTransformer,
-        exportDefinitions: Boolean
+        exportDefinitions: Boolean,
+        private val indentBase: String = indent
     ) {
     private val className = target.name
     private val typeVariables = target.typeVariables
@@ -35,7 +36,6 @@ internal class TypeScriptGenerator private constructor (
         return output
     }
 
-
     private fun generateDefinition(): String {
         return if (isEnum) {
             generateEnum()
@@ -49,21 +49,21 @@ internal class TypeScriptGenerator private constructor (
         val templateParameters = generateTypeVariables()
         val interfaceName = definitionTypeTransformer(className)
         val properties= generateProperties()
-        return "$indent${export}interface $interfaceName$templateParameters$extendsString {\n" +
+        return "$indentBase${export}interface $interfaceName$templateParameters$extendsString {\n" +
                     properties +
-                "$indent}\n"
+                "$indentBase}\n"
     }
 
     private fun generateEnum(): String {
         val enumValues= propertiesOrEnumValues
                 .sortedBy { it.jsonName() }
                 .joinToString(",\n") { enumValue ->
-                    "${indent+indent}${enumValue.jsonName()} = '${enumValue.jsonName()}'"
+                    "${indentBase+indent}${enumValue.jsonName()} = '${enumValue.jsonName()}'"
                 }
         val enumName = definitionTypeTransformer(className)
-        return "$indent${export}enum $enumName {\n" +
+        return "$indentBase${export}enum $enumName {\n" +
             "$enumValues\n" +
-            "$indent}\n"
+            "$indentBase}\n"
     }
 
     private fun generateExtends(): String {
@@ -99,7 +99,7 @@ internal class TypeScriptGenerator private constructor (
                     val propertyName = property.jsonName()
                     val propertyType = transformer.transformType(property.bodyType, typesWithinScope, typeVariables)
                     val isNullable = if (transformer.isNullable(property.bodyType)) "?" else ""
-                    "$indent$indent$propertyName$isNullable: $propertyType;\n"
+                    "$indentBase$indent$propertyName$isNullable: $propertyType;\n"
                 }
     }
 
@@ -136,7 +136,10 @@ internal class TypeScriptGenerator private constructor (
                             moduleName,
                             definitionTypeTransformer,
                             superTypeTransformer,
-                            exportDefinitions
+                            exportDefinitions,
+                            if (moduleOption == ModuleOption.None) {
+                                ""
+                            } else indent
                     )
                     addAnyProcessedDefinitions(targetType, definitionPreProcessors, definitions)
                     definitions.add(generatedTypeScript.output)
