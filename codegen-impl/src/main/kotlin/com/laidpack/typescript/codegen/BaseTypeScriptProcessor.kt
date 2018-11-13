@@ -75,7 +75,7 @@ abstract class BaseTypeScriptProcessor : KotlinAbstractProcessor(), KotlinMetada
                 name = namespace as String
             }
             else -> {
-                ModuleOption.None
+                moduleOption = ModuleOption.None
                 name = ""
             }
         }
